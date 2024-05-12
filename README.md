@@ -117,7 +117,7 @@ run 体系  tag tag_sample  目标病原    DJ_sample   LY_sample   DJ_原始数
 
 ## **20240512修订：**
 
-1.  修订软件中回顾信息仅能纳入本轮\"原始数据\"的Bug
+1.  修订软件中回顾信息仅能纳入本轮"原始数据"的Bug
 
 2.  修订current_history_results.lastime.xlsx，并替换至系统上，原相关文件位于：
 
