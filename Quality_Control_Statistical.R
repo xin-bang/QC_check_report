@@ -29,12 +29,12 @@ suppressPackageStartupMessages({
 #   input2 = "./00_raw_data/all_HP_vardect.txt.zip",
 #   input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
 #   input4 = "./00_raw_data/all.drug_mp.txt",
-#   input5 = "./00_raw_data/240507_TPMN00173_0302_A000H75CJK-历史质检表.xlsx",
+#   input5 = "./00_raw_data/240528_TPMN00173_0311_A000H7C5WM-历史质检表.xlsx",
 #   output1 = "./Test_QC_result.xlsx",
 #   input6 = "./current_history_results.xlsx",
 #   input7 = "./00_raw_data/config.xlsx",
 #   input8 = "./00_raw_data/SampleSheetUsed.csv",
-#   date = "240507",
+#   date = "240528",
 #   output2 = "./current_history_results_thistime.xlsx",
 #   comparepdf = "Test_QC_compare.pdf",
 #   Retropdf = "Test_QC_retro.pdf"
@@ -275,14 +275,15 @@ df4$patho_RPK = as.numeric(df4$patho_RPK)
 ##对整合企参信息之后的DF进行数据清洗
 ################################################################################
 #清洗patho_name，定义新的patho_name2以规范病原体名称
+#20240529：枯草和 三叶草 的名称问题修改；patho_namezn2 是原名称；patho_namezn是规范后的名称；后续的分析都是用规范后的名称：patho_namezn
 df4$patho_namezn2 = df4$patho_namezn
 patho_name_fix <- read.xlsx(args$input7,sheet = "patho_name_fix")
 
 for (i in 1:nrow(patho_name_fix)) {
   df4 <- df4 %>%
-    mutate(patho_namezn2 = case_when(
+    mutate(patho_namezn = case_when(
       grepl(patho_name_fix$Original_name[i], patho_namezn) ~ patho_name_fix$replacement[i],
-      TRUE ~ patho_namezn2
+      TRUE ~ patho_namezn
     ))
 }
 
@@ -364,14 +365,14 @@ df5 = df4 %>% filter(!is.na(tag_sample))
 df5 = df5 %>% 
   filter(!patho_namezn %in% c("肠道病毒","肠道病毒A组","人腺病毒E组","人腺病毒C组","人腺病毒21型","人腺病毒B组","人腺病毒")) 
 
-##根据patho_namezn2 将病原分类为：目标、外源、外源内参、人内参等args$input7
+##根据patho_namezn 将病原分类为：目标、外源、外源内参、人内参等args$input7
 patho_class <- read.xlsx(args$input7,sheet = "patho_class") 
 df5$patho_tag = "外源病原"    #默认都是外源内参，如果需要添加，请在配置文件中调整
 for (i in 1:nrow(patho_class)) {
   df5 <- df5 %>%
     mutate(patho_tag = case_when(
-      grepl(patho_class$condition[i], patho_namezn2) & grepl(patho_class$tag[i], tag) ~ patho_class$label[i],
-      grepl(patho_class$condition[i], patho_namezn2) & grepl(patho_class$tag[i], 体系) ~ patho_class$label[i],
+      grepl(patho_class$condition[i], patho_namezn) & grepl(patho_class$tag[i], tag) ~ patho_class$label[i],
+      grepl(patho_class$condition[i], patho_namezn) & grepl(patho_class$tag[i], 体系) ~ patho_class$label[i],
       TRUE ~ patho_tag
     ))
 }
@@ -526,6 +527,15 @@ check_condition2 <- function(data, column) {
 
 df5_cc_stat$外源内参[is.na(df5_cc_stat$外源内参)] <- 0
 df5_cc_stat$总人内参[is.na(df5_cc_stat$总人内参)] <- 0
+
+
+##20240529修订：修改目标病原 NA 时为 空：空字符串始终是字符型（character）
+##以解决由目标病原为NA时带来的str_detect(目标病原,"百日咳") 返回 NA的情况；
+df5_cc_stat = df5_cc_stat %>% 
+  mutate(目标病原 = case_when(
+    is.na(目标病原) ~ "",
+    TRUE ~ 目标病原
+  ))
 
 
 df5_cc_stat = df5_cc_stat %>%
@@ -1230,14 +1240,14 @@ df7 = df5 %>% select(-drug_info,-resis_MutLog,-patho_tag) %>%
 ##个性化调整
 ##################
 df7 <- df7 %>%
-  mutate(patho_namezn2= case_when(
-    grepl("人腮腺炎病毒2型（人副流感病毒2型）", patho_namezn2) ~ "人副流感2型", ##修改名称以让patho_namezn2和型别一致
-    TRUE ~ patho_namezn2 
+  mutate(patho_namezn= case_when(
+    grepl("人腮腺炎病毒2型（人副流感病毒2型）", patho_namezn) ~ "人副流感2型", ##修改名称以让patho_namezn和型别一致
+    TRUE ~ patho_namezn 
   )) 
 df7 <- df7 %>%
-  mutate(patho_namezn2= case_when(
+  mutate(patho_namezn= case_when(
     grepl("外源", patho_namezn) ~ "三叶草",
-    TRUE ~ patho_namezn2 
+    TRUE ~ patho_namezn 
   )) 
 df7 <- df7%>%
   mutate(tag= case_when(
@@ -1251,8 +1261,8 @@ df7 <- df7%>%
     TRUE ~ 型别
   ))
 df7_consist <- df7 %>%
-  filter(str_detect(patho_namezn2, fixed(型别)) | str_detect(patho_namezn2, "三叶草") | 
-           str_detect(patho_namezn2, "内参")) 
+  filter(str_detect(patho_namezn, fixed(型别)) | str_detect(patho_namezn, "三叶草") | 
+           str_detect(patho_namezn, "内参")) 
 #################
 
 ##添加至回顾性研究中
@@ -1287,18 +1297,18 @@ for (i in 1:nrow(retro_tagname_fix)) {
       TRUE ~ tag
     ))
 }
-#patho_namezn2进一步规范清洗：
+#patho_namezn进一步规范清洗：
 df7_merge_orgin <- df7_merge_orgin%>%
-  mutate(patho_namezn2= case_when(
-    grepl("三叶草",patho_namezn2)  ~ "外源内参",
-    (grepl("阳性对照品",型别) & grepl("枯草芽孢杆菌",patho_namezn2)) ~ "阳性对照品",
-    TRUE ~ patho_namezn2
+  mutate(patho_namezn= case_when(
+    grepl("三叶草",patho_namezn)  ~ "外源内参",
+    (grepl("阳性对照品",型别) & grepl("枯草芽孢杆菌",patho_namezn)) ~ "阳性对照品",
+    TRUE ~ patho_namezn
   ))
 
 ##数据清洗:将人内参相加为总人内参：注意去重
 df7_merge_orgin <- df7_merge_orgin %>% distinct() %>% 
   group_by(run,体系,sample) %>%
-  mutate(总人内参RPK = sum(patho_RPK[grepl("人内参", patho_namezn2)]))
+  mutate(总人内参RPK = sum(patho_RPK[grepl("人内参", patho_namezn)]))
 
 ##写入到current_history_results_thistime.xlsx
 df7_merge_orgin = df7_merge_orgin %>% as.data.frame()
@@ -1334,9 +1344,9 @@ for (i in 1:tixi_n){
   #绘制外源内参，1：所有的企参；2：NEG（阴性对照品）一张
   #####################################################
   df7_merge_plot_1 = df7_merge %>% 
-    filter(tag_sample != "阴性对照品" & str_detect(patho_namezn2, "外源内参"))
+    filter(tag_sample != "阴性对照品" & str_detect(patho_namezn, "外源内参"))
   df7_merge_plot_2 = df7_merge %>% 
-    filter(tag_sample == "阴性对照品" & str_detect(patho_namezn2, "外源内参"))
+    filter(tag_sample == "阴性对照品" & str_detect(patho_namezn, "外源内参"))
   
   if (nrow(df7_merge_plot_1) > 0 &  !all(is.na(df7_merge_plot_1$tag2))) {
     dates <- unique(df7_merge_plot_1$date)[1:min(60, length(unique(df7_merge_plot_1$date)))]
@@ -1393,7 +1403,7 @@ for (i in 1:tixi_n){
   ##绘制总人内参
   #####################################################
   df7_merge_plot_3 = df7_merge %>%
-    filter(tag_sample == "阴性参考品" & str_detect(patho_namezn2, "人内参"))
+    filter(tag_sample == "阴性参考品" & str_detect(patho_namezn, "人内参"))
   df7_merge_plot_3$log_RPK = log10(df7_merge_plot_3$总人内参RPK+1)
   
   if (nrow(df7_merge_plot_3) > 0 & !all(is.na(df7_merge_plot_3$tag2))) {
@@ -1443,8 +1453,8 @@ for (i in 1:tixi_n){
     item = tag_smaple_type[j]
     
     df7_merge_plot2 = df7_merge %>% 
-      filter(tag_sample == item,!str_detect(patho_namezn2, "三叶草") & 
-               !str_detect(patho_namezn2, "外源内参") & !str_detect(patho_namezn2,"人内参"))
+      filter(tag_sample == item,!str_detect(patho_namezn, "三叶草") & 
+               !str_detect(patho_namezn, "外源内参") & !str_detect(patho_namezn,"人内参"))
     
     if (nrow(df7_merge_plot2) > 0  & !all(is.na(df7_merge_plot2$tag2))) {
       df7_merge_plot2 = df7_merge_plot2 %>% 

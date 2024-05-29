@@ -1264,7 +1264,9 @@ df7_old2 = read.xlsx(args$input6,sheet = "临床反馈")
 
 df7_old = df7_old %>%  select(run,date,体系,sample,tag,tag_sample,型别,proty,proid,prmty,生产批号,产品检类别,
                               成品对应中间品批号,生产工艺,核酸提取日期,核酸重复次数,提取重复次数,文库浓度,Pooling体积,
-                              patho_namezn2,patho_namezn,filter_flag,patho_RPK,patho_reads,质控评价,QC_flag,临床反馈)
+                              patho_namezn2,patho_namezn,filter_flag,patho_RPK,patho_reads,质控评价,QC_flag,临床反馈,原始数据,Q30,
+                              过滤后数据量,质控合格比例,有效数据量,有效数据比例,提取试剂规格,提取试剂批号,企参编号,resis_name,
+                              总人内参RPK)
 df7_old <- lapply(df7_old, as.character) 
 df7_old$patho_RPK = as.numeric(df7_old$patho_RPK)
 df7_old <- as_tibble(df7_old)
