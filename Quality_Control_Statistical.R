@@ -20,8 +20,8 @@ suppressPackageStartupMessages({
   # library(patchwork)
 })
 
-# # # #定义调试参数，还未找到很好的解决办法
-# ## 202405111修订：增加核对功能： 质检表里的文库名在SampleSheet中是否存在
+# # #定义调试参数，还未找到很好的解决办法
+## 202405111修订：增加核对功能： 质检表里的文库名在SampleSheet中是否存在
 # args <- list(
 #   input_run = ".",
 #   input0 = "./00_raw_data/Patho_report_final_format.addt5.project.sort.zip",
@@ -29,12 +29,12 @@ suppressPackageStartupMessages({
 #   input2 = "./00_raw_data/all_HP_vardect.txt.zip",
 #   input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
 #   input4 = "./00_raw_data/all.drug_mp.txt",
-#   input5 = "./00_raw_data/240528_TPMN00173_0311_A000H7C5WM-历史质检表.xlsx",
+#   input5 = "./00_raw_data/240530_TPMN00173_0312_A000H7C5M2-历史质检表.xlsx",
 #   output1 = "./Test_QC_result.xlsx",
 #   input6 = "./current_history_results.xlsx",
 #   input7 = "./00_raw_data/config.xlsx",
 #   input8 = "./00_raw_data/SampleSheetUsed.csv",
-#   date = "240528",
+#   date = "240530",
 #   output2 = "./current_history_results_thistime.xlsx",
 #   comparepdf = "Test_QC_compare.pdf",
 #   Retropdf = "Test_QC_retro.pdf"
@@ -898,13 +898,6 @@ write.xlsx(data_frames, file = args$output1)
 all_plots <- list()
 tixi = df5_cc_stat $体系 %>% unique()
 tixi_n = length(tixi)
-
-
-#############
-df6_stat_clean = df6_stat_clean %>% 
-  mutate(生产批号_DJ = case_when(
-    tag_sample == "检测限参考品" ~ "20240501呼吸100成品检",
-    TRUE ~ 生产批号_DJ))
 
 
 
