@@ -900,6 +900,13 @@ tixi = df5_cc_stat $体系 %>% unique()
 tixi_n = length(tixi)
 
 
+#############
+df6_stat_clean = df6_stat_clean %>% 
+  mutate(生产批号_DJ = case_when(
+    tag_sample == "检测限参考品" ~ "20240501呼吸100成品检",
+    TRUE ~ 生产批号_DJ))
+
+
 
 
 #####所有样本中的质控散点图,按照体系来绘制
@@ -924,7 +931,7 @@ if (nrow(sample_compare_df) > 0){
         duibi_p <- ggplot(df6_stat_clean, aes_string(
           x = paste0(compare_item, "_DJ"), 
           y = paste0(compare_item, "_LY"),
-          color = "tag_sample"
+          color = "tag_sample",shape = "生产批号_DJ"
         )) + 
           geom_point(size = 1.5,alpha = 0.4) + 
           geom_abline(intercept = 0, slope = 1, color = "#FF6600", linetype = "dashed",linewidth = 1) +
@@ -970,7 +977,7 @@ if (nrow(sample_compare_df) > 0){
     
     
     if (nrow(compare_all_patho_tixi) > 0) {
-      patho_all_p <- ggplot(compare_all_patho_tixi, aes(检出病原RPK_DJ,检出病原RPK_LY,color = tag_sample)) + 
+      patho_all_p <- ggplot(compare_all_patho_tixi, aes(检出病原RPK_DJ,检出病原RPK_LY,color = tag_sample,shape = 生产批号_DJ)) + 
         geom_point(size = 1.5,alpha = 0.4) +
         geom_abline(intercept = 0, slope = 1, color = "#FF6600", linetype = "dashed",linewidth = 1) +
         geom_abline(intercept = 0, slope = 0.5, color = "green",linetype = "dashed",linewidth = 0.3) +
@@ -1022,7 +1029,7 @@ if (nrow(sample_compare_df) > 0){
         duibi_p <- ggplot(df6_stat_clean, aes_string(
           x = paste0(compare_item, "_DJ"), 
           y = paste0(compare_item, "_LY"),
-          color = "tag_sample"
+          color = "tag_sample",shape = "生产批号_DJ"
         )) + 
           geom_point(size = 1.5,alpha = 0.4) + 
           geom_abline(intercept = 0, slope = 1, color = "#FF6600", linetype = "dashed",linewidth = 1) +
@@ -1113,7 +1120,7 @@ if (nrow(sample_compare_df) > 0){
         
         # 绘制ratio图
         count <- compare_specif_df_plot %>% filter(plot_tag == "合格") %>% summarise(n=n())
-        compare_specif_p2 <- ggplot(compare_specif_df_plot, aes(RPK_sum, RPK_ratio, color = plot_tag)) + 
+        compare_specif_p2 <- ggplot(compare_specif_df_plot, aes(RPK_sum, RPK_ratio, color = plot_tag,shape = 生产批号_DJ)) + 
           geom_point(size = 1.5, alpha = 0.6) + 
           scale_color_manual(values = c("不合格" = "red", "合格" = "blue"))+
           geom_hline(yintercept = 1.0, color = "black", linewidth = 0.3) +
@@ -1137,7 +1144,7 @@ if (nrow(sample_compare_df) > 0){
         
         
         # 绘制散点图
-        compare_specif_p <- ggplot(compare_specif_df_plot, aes(检出病原RPK_DJ,检出病原RPK_LY,color = tag_sample)) + 
+        compare_specif_p <- ggplot(compare_specif_df_plot, aes(检出病原RPK_DJ,检出病原RPK_LY,color = tag_sample,shape = 生产批号_DJ)) + 
           geom_point(size = 1.5,alpha = 0.4) + 
           geom_abline(intercept = 0, slope = 1, color = "#FF6600", linetype = "dashed",linewidth = 1) +
           geom_abline(intercept = 0, slope = 0.5, color = "green",linetype = "dashed",linewidth = 0.3) +
@@ -1166,7 +1173,7 @@ if (nrow(sample_compare_df) > 0){
     
     ##绘制耐药比对图：
     #######################################
-    df5_all_compare_drug_plot = df5_all_compare %>% select(体系,sample_DJ,sample_LY,drug_info_DJ,drug_info_LY,tag_sample) %>% 
+    df5_all_compare_drug_plot = df5_all_compare %>% select(体系,sample_DJ,sample_LY,drug_info_DJ,drug_info_LY,tag_sample,生产批号_LY,生产批号_DJ) %>% 
       separate(drug_info_DJ,sep = "\\|",c("drug_name_DJ","drug_stat_DJ","drug_rpk_DJ"),remove = TRUE) %>% 
       separate(drug_info_LY,sep = "\\|",c("drug_name_LY","drug_stat_LY","drug_rpk_LY"),remove = TRUE)
     
@@ -1189,7 +1196,7 @@ if (nrow(sample_compare_df) > 0){
       
       if (nrow(compare_all_patho_tixi_drug) > 0){
         drug_p <- 
-          ggplot(compare_all_patho_tixi_drug, aes(drug_rpk_DJ,drug_rpk_LY,color = tag_sample)) + 
+          ggplot(compare_all_patho_tixi_drug, aes(drug_rpk_DJ,drug_rpk_LY,color = tag_sample,shape = 生产批号_DJ)) + 
           geom_point(size = 1.5,alpha = 0.4) +
           geom_abline(intercept = 0, slope = 1, color = "#FF6600", linetype = "dashed",linewidth = 1) +
           geom_abline(intercept = 0, slope = 0.5, color = "green",linetype = "dashed",linewidth = 0.3) +
@@ -1335,11 +1342,13 @@ for (i in 1:tixi_n){
   df7_merge$log_RPK_value = log10(df7_merge$patho_RPK+1)
   df7_merge = df7_merge %>% 
     mutate(tag2 = case_when(
-      grepl("LY",sample) & grepl(paste(args$date),date)~ "LY",
-      grepl("DJ",sample) & grepl(paste(args$date),date)~ "DJ",
+      grepl("LY",sample) & grepl(paste(args$date),date)~ "LY-new",
+      grepl("DJ",sample) & grepl(paste(args$date),date)~ "DJ-new",
+      grepl("LY",sample) & !grepl(paste(args$date),date)~ "LY-old",
+      grepl("DJ",sample) & !grepl(paste(args$date),date)~ "DJ-old",
       TRUE ~ NA_character_,
     ))
-  
+
   
   #绘制外源内参，1：所有的企参；2：NEG（阴性对照品）一张
   #####################################################
@@ -1348,15 +1357,15 @@ for (i in 1:tixi_n){
   df7_merge_plot_2 = df7_merge %>% 
     filter(tag_sample == "阴性对照品" & str_detect(patho_namezn, "外源内参"))
   
-  if (nrow(df7_merge_plot_1) > 0 &  !all(is.na(df7_merge_plot_1$tag2))) {
-    dates <- unique(df7_merge_plot_1$date)[1:min(60, length(unique(df7_merge_plot_1$date)))]
+  if (nrow(df7_merge_plot_1) > 0 &&  !all(is.na(df7_merge_plot_1$tag2)) && any(df7_merge_plot_1$date == args$date, na.rm = TRUE)) {
+    dates = tail(unique(df7_merge_plot_1$date), n = 20)
     ordered_dates <- dates[order(as.Date(dates, format = "%y%m%d"))]
     
     retro_p1 =
       ggplot(df7_merge_plot_1, aes(date, log_RPK_value)) + 
       geom_point(aes(color = tag2,shape=QC_flag),size = 0.6) + 
       scale_shape_manual(values = c("质控合格" = 20, "质控不合格" = 0))+
-      scale_color_manual(values = c("LY" = "blue", "DJ" = "red")) +
+      scale_color_manual(values = c("LY-new" = "blue", "DJ-new" = "red","LY-old" = "#66CCFF","DJ-old" = "#FF9933")) +
       facet_wrap(~ 体系, scales = "free") +
       theme_bw() +
       scale_x_discrete(limits = rev(rev(ordered_dates))) +            ##设置X轴不超过60个时间点
@@ -1364,24 +1373,24 @@ for (i in 1:tixi_n){
       theme(axis.text.x = element_text(angle = 90, hjust = 1),
             panel.grid = element_blank(),
             text = element_text(size = 8), 
-            axis.text = element_text(size = 4), 
+            axis.text = element_text(size = 7), 
             axis.title = element_text(size = 6),
             plot.title = element_text(size = 8), 
             legend.text = element_text(size = 8), 
             legend.title = element_text(size = 8))
     all_retro_plot[[paste0("1-",tixi_item,"-中外源内参RPK分布")]] <- retro_p1
   }
+
   
-  
-  if (nrow(df7_merge_plot_2) > 0 & !all(is.na(df7_merge_plot_2$tag2))) {
-    dates <- unique(df7_merge_plot_2$date)[1:min(60, length(unique(df7_merge_plot_2$date)))]
+  if (nrow(df7_merge_plot_2) > 0 && !all(is.na(df7_merge_plot_2$tag2)) && any(df7_merge_plot_2$date == args$date, na.rm = TRUE)) {
+    dates = tail(unique(df7_merge_plot_2$date), n = 20)
     ordered_dates <- dates[order(as.Date(dates, format = "%y%m%d"))]
     
     retro_p2 =
       ggplot(df7_merge_plot_2, aes(date, log_RPK_value)) + 
       geom_point(aes(color = tag2,shape=QC_flag),size = 0.6) + 
       scale_shape_manual(values = c("质控合格" = 20, "质控不合格" = 0))+
-      scale_color_manual(values = c("LY" = "blue", "DJ" = "red")) +
+      scale_color_manual(values = c("LY-new" = "blue", "DJ-new" = "red","LY-old" = "#66CCFF","DJ-old" = "#FF9933")) +
       facet_wrap(~ 体系, scales = "free") +
       theme_bw() +
       scale_x_discrete(limits = rev(rev(ordered_dates))) +            ##设置X轴不超过60个时间点
@@ -1389,7 +1398,7 @@ for (i in 1:tixi_n){
       theme(axis.text.x = element_text(angle = 90, hjust = 1),
             panel.grid = element_blank(),
             text = element_text(size = 8), 
-            axis.text = element_text(size = 4), 
+            axis.text = element_text(size = 7), 
             axis.title = element_text(size = 6),
             plot.title = element_text(size = 8), 
             legend.text = element_text(size = 8), 
@@ -1406,15 +1415,15 @@ for (i in 1:tixi_n){
     filter(tag_sample == "阴性参考品" & str_detect(patho_namezn, "人内参"))
   df7_merge_plot_3$log_RPK = log10(df7_merge_plot_3$总人内参RPK+1)
   
-  if (nrow(df7_merge_plot_3) > 0 & !all(is.na(df7_merge_plot_3$tag2))) {
-    dates <- unique(df7_merge_plot_3$date)[1:min(60, length(unique(df7_merge_plot_3$date)))]
+  if (nrow(df7_merge_plot_3) > 0 && !all(is.na(df7_merge_plot_3$tag2)) && any(df7_merge_plot_3$date == args$date, na.rm = TRUE)) {
+    dates = tail(unique(df7_merge_plot_3$date), n = 20)
     ordered_dates <- dates[order(as.Date(dates, format = "%y%m%d"))]
     
     retro_p3 =
       ggplot(df7_merge_plot_3, aes(date, log_RPK)) + 
       geom_point(aes(color = tag2,shape=QC_flag),size = 0.6) + 
       scale_shape_manual(values = c("质控合格" = 20, "质控不合格" = 0))+
-      scale_color_manual(values = c("LY" = "blue", "DJ" = "red")) +
+      scale_color_manual(values = c("LY-new" = "blue", "DJ-new" = "red","LY-old" = "#66CCFF","DJ-old" = "#FF9933")) +
       facet_wrap(~ 体系, scales = "free") +
       theme_bw() + 
       scale_x_discrete(limits = rev(rev(ordered_dates))) +            ##设置X轴不超过60个时间点
@@ -1422,7 +1431,7 @@ for (i in 1:tixi_n){
       theme(axis.text.x = element_text(angle = 90, hjust = 1),
             panel.grid = element_blank(),
             text = element_text(size = 8), 
-            axis.text = element_text(size = 4), 
+            axis.text = element_text(size = 7), 
             axis.title = element_text(size = 6),
             plot.title = element_text(size = 8), 
             legend.text = element_text(size = 8), 
@@ -1443,8 +1452,10 @@ for (i in 1:tixi_n){
   df7_merge$log_RPK_value = log10(df7_merge$patho_RPK+1)
   df7_merge = df7_merge %>% 
     mutate(tag2 = case_when(
-      grepl("LY",sample) & grepl(paste(args$date),date)~ "LY",
-      grepl("DJ",sample) & grepl(paste(args$date),date)~ "DJ",
+      grepl("LY",sample) & grepl(paste(args$date),date)~ "LY-new",
+      grepl("DJ",sample) & grepl(paste(args$date),date)~ "DJ-new",
+      grepl("LY",sample) & !grepl(paste(args$date),date)~ "LY-old",
+      grepl("DJ",sample) & !grepl(paste(args$date),date)~ "DJ-old",
       TRUE ~ NA_character_,))
   
   tag_smaple_type = c("阳性参考品","阴性参考品","检测限参考品","重复性参考品","阳性对照品","阴性对照品")
@@ -1456,24 +1467,25 @@ for (i in 1:tixi_n){
       filter(tag_sample == item,!str_detect(patho_namezn, "三叶草") & 
                !str_detect(patho_namezn, "外源内参") & !str_detect(patho_namezn,"人内参"))
     
-    if (nrow(df7_merge_plot2) > 0  & !all(is.na(df7_merge_plot2$tag2))) {
+    if (nrow(df7_merge_plot2) > 0  && !all(is.na(df7_merge_plot2$tag2)) && any(df7_merge_plot2$date == args$date, na.rm = TRUE)) {
       df7_merge_plot2 = df7_merge_plot2 %>% 
         group_by(tag) %>% 
         filter(!all(is.na(tag2))) %>% ungroup()
       
-      dates <- unique(df7_merge_plot2$date)[1:min(60, length(unique(df7_merge_plot2$date)))]
+      # dates <- unique(df7_merge_plot2$date)[1:min(20, length(unique(df7_merge_plot2$date)))]
+      dates = tail(unique(df7_merge_plot2$date), n = 20)
       ordered_dates <- dates[order(as.Date(dates, format = "%y%m%d"))]
       
       retro_p2 = 
         ggplot(df7_merge_plot2,aes(date,log_RPK_value)) + geom_point(aes(color = tag2,shape=QC_flag))+ 
         scale_shape_manual(values = c("质控合格" = 20, "质控不合格" = 0))+
-        scale_color_manual(values = c("LY" = "blue", "DJ" = "red")) +
+        scale_color_manual(values = c("LY-new" = "blue", "DJ-new" = "red","LY-old" = "#66CCFF","DJ-old" = "#FF9933")) +
         facet_wrap(~ tag ,scales = "free")+ theme_bw()+
         scale_x_discrete(limits = rev(rev(ordered_dates))) +            ##设置X轴不超过60个时间点
         ggtitle(paste0(tixi_item,"-",item,"的目标病原RPK在各个体系的分布以及随时间的分布"))+
         theme(axis.text.x = element_text(angle = 90, hjust = 1),
               panel.grid = element_blank(),
-              axis.text = element_text(size = 4))
+              axis.text = element_text(size = 7))
       all_retro_plot2[[paste0("2-",tixi_item,"-",item,"-","目标病原RPK")]] <- retro_p2
     }
   }
