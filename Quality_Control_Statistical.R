@@ -29,7 +29,7 @@ suppressPackageStartupMessages({
 #   input2 = "./00_raw_data/all_HP_vardect.txt.zip",
 #   input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
 #   input4 = "./00_raw_data/all.drug_mp.txt",
-#   input5 = "./00_raw_data/240530_TPMN00173_0312_A000H7C5M2-历史质检表.xlsx",
+#   input5 = "./00_raw_data/240625_TPMN00173_0330_A000H77JYM-历史质检表.xlsx",
 #   output1 = "./Test_QC_result.xlsx",
 #   input6 = "./current_history_results.xlsx",
 #   input7 = "./00_raw_data/config.xlsx",
