@@ -20,8 +20,8 @@ suppressPackageStartupMessages({
   # library(patchwork)
 })
 
-# # #定义调试参数，还未找到很好的解决办法
-## 202405111修订：增加核对功能： 质检表里的文库名在SampleSheet中是否存在
+# #定义调试参数，还未找到很好的解决办法
+# # 202405111修订：增加核对功能： 质检表里的文库名在SampleSheet中是否存在
 # args <- list(
 #   input_run = ".",
 #   input0 = "./00_raw_data/Patho_report_final_format.addt5.project.sort.zip",
@@ -29,7 +29,7 @@ suppressPackageStartupMessages({
 #   input2 = "./00_raw_data/all_HP_vardect.txt.zip",
 #   input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
 #   input4 = "./00_raw_data/all.drug_mp.txt",
-#   input5 = "./00_raw_data/240625_TPMN00173_0330_A000H77JYM-历史质检表.xlsx",
+#   input5 = "./00_raw_data/240625_TPMN00173_0330_A000H77JYMzq-历史质检表.xlsx",
 #   output1 = "./Test_QC_result.xlsx",
 #   input6 = "./current_history_results.xlsx",
 #   input7 = "./00_raw_data/config.xlsx",
@@ -226,6 +226,12 @@ df1$体系 = str_split(df1$sample, "-", simplify = TRUE)[, 1]
 
 #按照企参编号匹配型别（目标病原）
 df3_add_patho = read.xlsx(args$input5,sheet = "企参列表") %>% select("编号","型别") %>% distinct()
+
+#20240627修订，将企参编号为na的替换为空，避免由于之间模板表填写不规范而导致的错误。
+df1 = df1 %>% mutate(企参编号 = case_when(
+  is.na(企参编号) ~ "",
+  TRUE ~ 企参编号
+))
 df1 <- df1 %>%left_join(df3_add_patho, by = c("企参编号" = "编号"),relationship = "many-to-many")
 df1 = df1 %>% rename("tag_sample" = "文库类型","tag" = "temp_id") 
 df1 = df1 %>% filter(tag_sample != "")
@@ -496,18 +502,18 @@ df5_cc_stat$resis_info = gsub("\", \"", ";",df5_cc_stat$resis_info)
 #########################################################################################
 # tag_sample为临床样本时，最终评价为质控评价
 # tag_sample为NTC 时：其它病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格
-# 检测限参考品：检出目标病原为阳性，外源内参大于50，其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格；（注：目标病原为百日咳，且耐药检出百日咳耐药：都为合格）
-# 阳性参考品：检出目标病原为阳性，外源内参大于50，其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格；（注：目标病原为百日咳，且耐药检出百日咳耐药：都为合格）
+# 检测限参考品：检出目标病原为阳性，外源内参大于50，其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格；（注：目标病原为百日咳，耐药检出百日咳耐药：都为合格）
+# 阳性参考品：检出目标病原为阳性，外源内参大于50，其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格；（注：目标病原为百日咳，耐药检出百日咳耐药：都为合格）
 # 阴性参考品：总人内参 > 200且 外源内参>50且其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格
 # 阴性对照品：外源内参>50且其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格
 # 阳性对照品：检出阳性对照品为阳性，外源内参大于50，其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格
-# 重复性参考品 :检出目标病原为阳性，外源内参大于50，其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格；（注：目标病原为百日咳，且耐药检出百日咳耐药：都为合格）
+# 重复性参考品 :检出目标病原为阳性，外源内参大于50，其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格；（注：目标病原为百日咳，耐药检出百日咳耐药：都为合格）
 
 
-df5_cc_stat  <- df5_cc_stat  %>%
-  mutate(其它病原 = ifelse(其它病原 == "NA|NA|NA", NA, 其它病原))
 
-# 针对resis_info 进行检查：
+##20260627修改：1：简化代码；2：修改目标病原是百日咳可能会给出最终评价为不合格的bug  
+#主要是resis_info会出现为空的情况（检测线参考品、重复性参考品、阳性参考品的样本）
+# 定义检查函数
 check_condition <- function(data, column) {
   sapply(strsplit(data[[column]], ";"), function(x) {
     values <- as.numeric(sapply(strsplit(x, "\\|"), `[`, 3))
@@ -516,7 +522,6 @@ check_condition <- function(data, column) {
   })
 }
 
-# 针对其它病原 进行检查：
 check_condition2 <- function(data, column) {
   sapply(strsplit(data[[column]], ";"), function(x) {
     values <- sapply(strsplit(x, "\\|"), `[`, 2)
@@ -525,57 +530,42 @@ check_condition2 <- function(data, column) {
   })
 }
 
-df5_cc_stat$外源内参[is.na(df5_cc_stat$外源内参)] <- 0
-df5_cc_stat$总人内参[is.na(df5_cc_stat$总人内参)] <- 0
+# 替换 NA 值
+df5_cc_stat <- df5_cc_stat %>%
+  mutate(
+    其它病原 = ifelse(其它病原 == "NA|NA|NA", NA, 其它病原),
+    外源内参 = replace_na(外源内参, 0),
+    总人内参 = replace_na(总人内参, 0),
+    目标病原 = replace_na(目标病原, "")
+  )
 
+# 中间变量存储检查结果
+resis_info_check <- check_condition(df5_cc_stat, "resis_info")
+other_pathogen_check <- check_condition2(df5_cc_stat, "其它病原")
 
-##20240529修订：修改目标病原 NA 时为 空：空字符串始终是字符型（character）
-##以解决由目标病原为NA时带来的str_detect(目标病原,"百日咳") 返回 NA的情况；
-df5_cc_stat = df5_cc_stat %>% 
-  mutate(目标病原 = case_when(
-    is.na(目标病原) ~ "",
-    TRUE ~ 目标病原
-  ))
+# 更新最终评价列
+df5_cc_stat <- df5_cc_stat %>%
+  mutate(
+    最终评价 = case_when(
+      tag_sample == "临床样本" ~ 质控评价,
+      tag_sample == "NTC" & resis_info_check & other_pathogen_check ~ "合格",
+      tag_sample == "阴性参考品" & resis_info_check & other_pathogen_check & 总人内参 > 200 ~ "合格",
+      tag_sample == "阴性对照品" & resis_info_check & other_pathogen_check & 外源内参 > 50 ~ "合格",
+      tag_sample == "阳性对照品" & resis_info_check & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" ~ "合格",
+      tag_sample == "检测限参考品" & resis_info_check & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      tag_sample == "检测限参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|NULL") ~ "合格",
+      tag_sample == "阳性参考品" & resis_info_check & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      tag_sample == "阳性参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|NULL") ~ "合格",
+      tag_sample == "重复性参考品" & resis_info_check & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      tag_sample == "重复性参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|NULL") ~ "合格",
+      TRUE ~ "不合格"
+    )
+  )
 
-
-df5_cc_stat = df5_cc_stat %>%
-  mutate(最终评价 = case_when(
-    tag_sample == "临床样本" ~ 质控评价,
-    tag_sample == "NTC" & check_condition(df5_cc_stat, "resis_info") &
-      check_condition2(df5_cc_stat, "其它病原") ~ "合格",
-    tag_sample == "阴性参考品" & check_condition(df5_cc_stat, "resis_info") &
-      check_condition2(df5_cc_stat, "其它病原") & 总人内参 > 200 ~ "合格",
-    tag_sample == "阴性对照品" & check_condition(df5_cc_stat, "resis_info") &
-      check_condition2(df5_cc_stat, "其它病原") & 外源内参 > 50 ~ "合格",
-    tag_sample == "阳性对照品"& check_condition(df5_cc_stat, "resis_info") &
-      check_condition2(df5_cc_stat, "其它病原") & 外源内参 > 50 & 目标病原预判 != "滤" ~ "合格", 
-    
-    tag_sample == "检测限参考品" & check_condition(df5_cc_stat, "resis_info") &
-      check_condition2(df5_cc_stat, "其它病原") & 外源内参 > 50 & 目标病原预判 != "滤" &
-      !str_detect(目标病原, "百日咳") ~ "合格",
-    tag_sample == "检测限参考品" & check_condition2(df5_cc_stat, "其它病原") &
-      外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳") ~ "合格",
-    
-    tag_sample == "阳性参考品" &  check_condition(df5_cc_stat, "resis_info") &
-      check_condition2(df5_cc_stat, "其它病原") & 外源内参 > 50 & 目标病原预判 != "滤" &
-      !str_detect(目标病原, "百日咳") ~ "合格",
-    tag_sample == "阳性参考品"  & check_condition2(df5_cc_stat, "其它病原") & 
-      外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳") ~ "合格",
-    
-    
-    tag_sample == "重复性参考品" & check_condition(df5_cc_stat, "resis_info") &
-      check_condition2(df5_cc_stat, "其它病原") & 外源内参 > 50 & 目标病原预判 != "滤" &
-      !str_detect(目标病原, "百日咳") ~ "合格",
-    tag_sample == "重复性参考品" & check_condition2(df5_cc_stat, "其它病原") &
-      外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳") ~ "合格",
-    
-    TRUE ~ "不合格"
-  ))
 
 ##20240510修改：
 # 1：添加一个不合格的原因：原始数据不合格的样本，最终评价为不合格
 # 2：最终评价原意是不合格，但写法有其它规则的，统一替换为不合格
-
 df5_cc_stat = df5_cc_stat %>% 
   mutate(最终评价 = case_when(
     str_detect(最终评价,"不合格") ~ "不合格",
