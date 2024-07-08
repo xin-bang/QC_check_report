@@ -168,3 +168,7 @@ run 体系  tag tag_sample  目标病原    DJ_sample   LY_sample   DJ_原始数
     "原始数据量 ≤ 50000
 
 -   附最新的最终判断及不合格原因：![](image/README/微信图片_20240705105143.png)
+
+## 20240708修订：
+
+-   修复耐药drug信息中，resis_rpk，resis_RawDep中为\"-\"的情况，造成class不一致无法合并的bug

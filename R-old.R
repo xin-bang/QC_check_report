@@ -21,7 +21,7 @@ suppressPackageStartupMessages({
 })
 
 # #定义调试参数，还未找到很好的解决办法
-# # 202405111修订：增加核对功能： 质检表里的文库名在SampleSheet中是否存在
+# # # 202405111修订：增加核对功能： 质检表里的文库名在SampleSheet中是否存在
 # args <- list(
 #   input_run = ".",
 #   input0 = "./00_raw_data/Patho_report_final_format.addt5.project.sort.zip",
@@ -29,12 +29,12 @@ suppressPackageStartupMessages({
 #   input2 = "./00_raw_data/all_HP_vardect.txt.zip",
 #   input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
 #   input4 = "./00_raw_data/all.drug_mp.txt",
-#   input5 = "./00_raw_data/240625_TPMN00173_0330_A000H77JYMzq-历史质检表.xlsx",
+#   input5 = "./00_raw_data/240704_TPMN00173_0335_A000H7FWH2-历史质检表.xlsx",
 #   output1 = "./Test_QC_result.xlsx",
 #   input6 = "./current_history_results.xlsx",
 #   input7 = "./00_raw_data/config.xlsx",
 #   input8 = "./00_raw_data/SampleSheetUsed.csv",
-#   date = "240530",
+#   date = "240704",
 #   output2 = "./current_history_results_thistime.xlsx",
 #   comparepdf = "Test_QC_compare.pdf",
 #   Retropdf = "Test_QC_retro.pdf"
@@ -310,7 +310,7 @@ drug1 = read.table(paste0(output_dir,"/all.drug_mp.txt"), sep = "\t",  quote = "
 drug2 = read.table(paste0(output_dir,"/all_HP_vardect.txt"), sep = "\t",  quote = "\"",header = TRUE, comment.char = "") %>% as_tibble()
 all_patho = read.table(paste0(output_dir,"/Patho_report_final_format.trim.rptname.ntinfo.addsemi"),sep = "\t", quote = "\"",
                        header = TRUE,comment.char = "") %>% as_tibble()
-
+drug1 = drug1 %>% mutate_at(vars(resis_RawDep,resis_rpk),as.numeric)
 if (nrow(drug1) == 0 && nrow(drug2) == 0) {
   df_drug1 <- drug1
 } else if (nrow(drug1) == 0) {
@@ -408,6 +408,11 @@ df5_cc = df5_cc %>%
          生产批号,产品检类别,成品对应中间品批号,生产工艺,核酸提取日期,核酸重复次数,提取重复次数,文库浓度,Pooling体积) %>%distinct()
 
 
+##20240705:使用stop 终止 目标病原为空的情况，并抛出错误
+if (length(df5_cc_temp) == 0) {
+  stop(paste("目标病原记录为空，请检查实验号是否记录错误"))
+}
+
 
 
 df5_cc_stat = df5_cc %>%  pivot_wider(names_from = patho_tag, values_from = patho_tag2,values_fn = list)  
@@ -504,7 +509,7 @@ df5_cc_stat$resis_info = gsub("\", \"", ";",df5_cc_stat$resis_info)
 # tag_sample为NTC 时：其它病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格
 # 检测限参考品：检出目标病原为阳性，外源内参大于50，其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格；（注：目标病原为百日咳，耐药检出百日咳耐药：都为合格）
 # 阳性参考品：检出目标病原为阳性，外源内参大于50，其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格；（注：目标病原为百日咳，耐药检出百日咳耐药：都为合格）
-# 阴性参考品：总人内参 > 200且 外源内参>50且其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格
+# 阴性参考品：总人内参 < 200且 外源内参>50且其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格
 # 阴性对照品：外源内参>50且其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格
 # 阳性对照品：检出阳性对照品为阳性，外源内参大于50，其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格
 # 重复性参考品 :检出目标病原为阳性，外源内参大于50，其余病原 没有检出 阳性病原 且耐药都小于500，即为合格，否则不合格；（注：目标病原为百日咳，耐药检出百日咳耐药：都为合格）
@@ -544,12 +549,13 @@ resis_info_check <- check_condition(df5_cc_stat, "resis_info")
 other_pathogen_check <- check_condition2(df5_cc_stat, "其它病原")
 
 # 更新最终评价列
+##20240705 阴性参考品的合格标准：总人内参 < 200；即不合格原因更改为 总人内参 ≥ 200
 df5_cc_stat <- df5_cc_stat %>%
   mutate(
     最终评价 = case_when(
       tag_sample == "临床样本" ~ 质控评价,
       tag_sample == "NTC" & resis_info_check & other_pathogen_check ~ "合格",
-      tag_sample == "阴性参考品" & resis_info_check & other_pathogen_check & 总人内参 > 200 ~ "合格",
+      tag_sample == "阴性参考品" & resis_info_check & other_pathogen_check & 总人内参 < 200 ~ "合格",
       tag_sample == "阴性对照品" & resis_info_check & other_pathogen_check & 外源内参 > 50 ~ "合格",
       tag_sample == "阳性对照品" & resis_info_check & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" ~ "合格",
       tag_sample == "检测限参考品" & resis_info_check & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
@@ -566,10 +572,11 @@ df5_cc_stat <- df5_cc_stat %>%
 ##20240510修改：
 # 1：添加一个不合格的原因：原始数据不合格的样本，最终评价为不合格
 # 2：最终评价原意是不合格，但写法有其它规则的，统一替换为不合格
+## 20240705修改：原始数据量不合格标准 ： ≤ 50000
 df5_cc_stat = df5_cc_stat %>% 
   mutate(最终评价 = case_when(
     str_detect(最终评价,"不合格") ~ "不合格",
-    is.na(原始数据) ~ "不合格",
+    原始数据 <= 50000 ~ "不合格",
     TRUE ~ 最终评价
   ))
 
@@ -579,11 +586,12 @@ df5_cc_stat = df5_cc_stat %>%
 ###20240507修改；对最终评价不合格的添加不合格原因：
 ###20240510修改；不合格原因中添加一个“原始数据不合格”的原因
 ###20240702修改；对比未检出目标病原的情况，不合格原因修改为：目标病原漏检
+###20240705修改；原始数据量不合格标准 ： ≤ 50000
 df5_cc_stat <- df5_cc_stat %>%
   mutate(不合格原因 = case_when(
     str_detect(最终评价,"不合格") & tag_sample == "临床样本" ~ 质控评价,
     str_detect(最终评价,"不合格") & tag_sample %in% c("NTC", "阳性参考品","检测限参考品","阴性参考品","阴性对照品","重复性参考品","阳性对照品")
-    & is.na(原始数据) ~ "原始数据不合格",
+    & 原始数据 <= 50000 ~ "原始数据不合格",
     str_detect(最终评价,"不合格") & tag_sample %in% c("阳性参考品","检测限参考品","重复性参考品","阳性对照品")
     & (目标病原预判 == "滤" | is.na(目标病原预判)) ~ "目标病原漏检",
     str_detect(最终评价,"不合格") & tag_sample %in% c("NTC", "阳性参考品","检测限参考品","阴性参考品","阴性对照品","重复性参考品","阳性对照品")
@@ -593,7 +601,7 @@ df5_cc_stat <- df5_cc_stat %>%
     str_detect(最终评价,"不合格") & tag_sample %in% c( "阳性参考品","检测限参考品","阴性对照品","重复性参考品","阳性对照品")
     & 外源内参 <= 50  ~ "外源内参不合格",
     str_detect(最终评价,"不合格") & tag_sample == "阴性参考品"
-    & 总人内参 <= 200  ~ "人内参不合格",
+    & 总人内参 >= 200  ~ "人内参不合格",
     TRUE ~ NA_character_
   ))
 

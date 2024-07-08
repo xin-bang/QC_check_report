@@ -21,7 +21,7 @@ suppressPackageStartupMessages({
 })
 
 # #定义调试参数，还未找到很好的解决办法
-# # # 202405111修订：增加核对功能： 质检表里的文库名在SampleSheet中是否存在
+# # 202405111修订：增加核对功能： 质检表里的文库名在SampleSheet中是否存在
 # args <- list(
 #   input_run = ".",
 #   input0 = "./00_raw_data/Patho_report_final_format.addt5.project.sort.zip",
@@ -29,12 +29,12 @@ suppressPackageStartupMessages({
 #   input2 = "./00_raw_data/all_HP_vardect.txt.zip",
 #   input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
 #   input4 = "./00_raw_data/all.drug_mp.txt",
-#   input5 = "./00_raw_data/240704_TPMN00173_0335_A000H7FWH2-历史质检表.xlsx",
+#   input5 = "./00_raw_data/240705_TPMN00173_0337_A000H7FW5J-历史质检表.xlsx",
 #   output1 = "./Test_QC_result.xlsx",
 #   input6 = "./current_history_results.xlsx",
 #   input7 = "./00_raw_data/config.xlsx",
 #   input8 = "./00_raw_data/SampleSheetUsed.csv",
-#   date = "240704",
+#   date = "240705",
 #   output2 = "./current_history_results_thistime.xlsx",
 #   comparepdf = "Test_QC_compare.pdf",
 #   Retropdf = "Test_QC_retro.pdf"
@@ -310,6 +310,11 @@ drug1 = read.table(paste0(output_dir,"/all.drug_mp.txt"), sep = "\t",  quote = "
 drug2 = read.table(paste0(output_dir,"/all_HP_vardect.txt"), sep = "\t",  quote = "\"",header = TRUE, comment.char = "") %>% as_tibble()
 all_patho = read.table(paste0(output_dir,"/Patho_report_final_format.trim.rptname.ntinfo.addsemi"),sep = "\t", quote = "\"",
                        header = TRUE,comment.char = "") %>% as_tibble()
+
+##20240708修订：改变resis_rpk，resis_RawDep中class
+drug1 = drug1 %>% mutate_at(vars(resis_RawDep,resis_rpk),as.numeric)
+drug2 = drug2 %>% mutate_at(vars(resis_RawDep,resis_rpk),as.numeric)
+
 
 if (nrow(drug1) == 0 && nrow(drug2) == 0) {
   df_drug1 <- drug1
