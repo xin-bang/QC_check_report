@@ -29,12 +29,12 @@ suppressPackageStartupMessages({
 #   input2 = "./00_raw_data/all_HP_vardect.txt.zip",
 #   input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
 #   input4 = "./00_raw_data/all.drug_mp.txt",
-#   input5 = "./00_raw_data/240705_TPMN00173_0337_A000H7FW5J-历史质检表.xlsx",
+#   input5 = "./00_raw_data/240708_TPMN00173_0339_A000H5VGV7-历史质检表.xlsx",
 #   output1 = "./Test_QC_result.xlsx",
 #   input6 = "./current_history_results.xlsx",
 #   input7 = "./00_raw_data/config.xlsx",
 #   input8 = "./00_raw_data/SampleSheetUsed.csv",
-#   date = "240705",
+#   date = "240708",
 #   output2 = "./current_history_results_thistime.xlsx",
 #   comparepdf = "Test_QC_compare.pdf",
 #   Retropdf = "Test_QC_retro.pdf"
@@ -409,7 +409,7 @@ df5_cc_temp = df5_cc %>%
   filter(patho_tag == "目标病原") %>%
   select(run,sample,型别,filter_flag,patho_namezn) %>% distinct()
 df5_cc = df5_cc %>%
-  select(run,date,sample,体系,tag,tag_sample,型别,原始数据,Q30,patho_tag,patho_tag2,resis_MutLog,drug_info,
+  select(run,date,sample,体系,tag,tag_sample,型别,原始数据,有效数据比例,Q30,patho_tag,patho_tag2,resis_MutLog,drug_info,
          生产批号,产品检类别,成品对应中间品批号,生产工艺,核酸提取日期,核酸重复次数,提取重复次数,文库浓度,Pooling体积) %>%distinct()
 
 
@@ -450,7 +450,7 @@ if ("耐药" %in% names(df5_cc_stat) & "敏感" %in% names(df5_cc_stat)) {
 
 ##个性化调整
 df5_cc_stat =df5_cc_stat %>% rename("目标病原" = "型别","其它病原" = "外源病原","目标病原RPK" = "目标病原","目标病原预判" = "filter_flag") %>% 
-  select(run,date,sample,体系,tag,tag_sample,原始数据,Q30,目标病原,目标病原RPK,目标病原预判,contains("内参"),其它病原,resis_info,patho_namezn,
+  select(run,date,sample,体系,tag,tag_sample,原始数据,Q30,有效数据比例,目标病原,目标病原RPK,目标病原预判,contains("内参"),其它病原,resis_info,patho_namezn,
          生产批号,产品检类别,成品对应中间品批号,生产工艺,核酸提取日期,核酸重复次数,提取重复次数,文库浓度,Pooling体积)
 
 
@@ -471,7 +471,7 @@ list_columns <- sapply(df5_cc_stat, is.list)
 df5_cc_stat[, list_columns] <- lapply(df5_cc_stat[, list_columns], function(x) sapply(x, function(y) paste(y, collapse = ";")))
 df5_cc_stat <- df5_cc_stat %>%
   mutate(总人内参 = rowSums(select(., contains("人内参")) %>% mutate_all(as.numeric), na.rm = TRUE)) %>% 
-  select(run,date,sample,体系,tag,tag_sample,原始数据,Q30,目标病原,目标病原RPK,目标病原预判, matches("总人内参|外源内参"),
+  select(run,date,sample,体系,tag,tag_sample,原始数据,Q30,有效数据比例,目标病原,目标病原RPK,目标病原预判, matches("总人内参|外源内参"),
          其它病原,resis_info,质控评价,patho_namezn,生产批号,产品检类别,成品对应中间品批号,生产工艺,核酸提取日期,核酸重复次数,
          提取重复次数,文库浓度,Pooling体积)
 
@@ -620,7 +620,7 @@ df5_cc_stat <- df5_cc_stat %>%
   filter(!(patho_namezn == "甲型流感病毒" & has_2009)) %>%
   select(-has_2009)
 
-df5_cc_stat_final = df5_cc_stat %>% select(run,sample,tag_sample,最终评价,不合格原因) %>% 
+df5_cc_stat_final = df5_cc_stat %>% select(run,sample,tag_sample,有效数据比例,最终评价,不合格原因) %>% 
   rename("RUN" = "run","实验编号" = "sample","文库编号" = "tag_sample") %>% as_tibble()
 
 
@@ -732,7 +732,7 @@ if (nrow(sample_compare_df) > 0){
   df6_2 <- left_join(df6_1, df5_cc_stat, by = c("sample_LY" = "sample"),suffix=c("_DJ","_LY")) %>% 
     select(-c(date,目标病原预判,其它病原))
   df6_stat  =df6_2 %>% select(run_DJ,体系_DJ,tag_DJ,tag_sample_DJ,目标病原_DJ,sample_DJ,sample_LY,原始数据_DJ,原始数据_LY,
-                              Q30_DJ,Q30_LY,目标病原RPK_DJ,目标病原RPK_LY,外源内参_DJ,外源内参_LY,总人内参_DJ,总人内参_LY,
+                              Q30_DJ,Q30_LY,有效数据比例_DJ,有效数据比例_LY,目标病原RPK_DJ,目标病原RPK_LY,外源内参_DJ,外源内参_LY,总人内参_DJ,总人内参_LY,
                               resis_info_DJ,resis_info_LY,质控评价_DJ,质控评价_LY,
                               生产批号_DJ,生产批号_LY,文库浓度_DJ,文库浓度_LY,最终评价_DJ,最终评价_LY,不合格原因_DJ,不合格原因_LY) %>% 
     rename(run = run_DJ,体系= 体系_DJ, tag = tag_DJ,tag_sample = tag_sample_DJ,目标病原 = 目标病原_DJ)

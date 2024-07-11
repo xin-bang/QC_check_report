@@ -171,4 +171,8 @@ run 体系  tag tag_sample  目标病原    DJ_sample   LY_sample   DJ_原始数
 
 ## 20240708修订：
 
--   修复耐药drug信息中，resis_rpk，resis_RawDep中为\"-\"的情况，造成class不一致无法合并的bug
+-   修复耐药drug信息中，resis_rpk，resis_RawDep中为"-"的情况，造成class不一致无法合并的bug
+
+## 20240711修订：
+
+-   添加有效数据比例（valid_reads_ratio）到QC对比表中；多处添加修改
