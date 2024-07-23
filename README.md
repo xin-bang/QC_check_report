@@ -171,7 +171,7 @@ run 体系  tag tag_sample  目标病原    DJ_sample   LY_sample   DJ_原始数
 
 -   附最新的最终判断及不合格原因：
 
-    ![](image/README/屏幕截图 2024-07-23 100035.png)
+    ![](image/README/屏幕截图%202024-07-23%20100035.png)
 
 ## 20240708修订：
 
