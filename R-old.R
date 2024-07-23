@@ -20,7 +20,7 @@ suppressPackageStartupMessages({
   # library(patchwork)
 })
 
-# #定义调试参数，还未找到很好的解决办法
+#定义调试参数，还未找到很好的解决办法
 # # 202405111修订：增加核对功能： 质检表里的文库名在SampleSheet中是否存在
 # args <- list(
 #   input_run = ".",
@@ -29,12 +29,12 @@ suppressPackageStartupMessages({
 #   input2 = "./00_raw_data/all_HP_vardect.txt.zip",
 #   input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
 #   input4 = "./00_raw_data/all.drug_mp.txt",
-#   input5 = "./00_raw_data/240705_TPMN00173_0337_A000H7FW5J-历史质检表.xlsx",
+#   input5 = "./00_raw_data/240715_TPMN00173_0343_A000H5LH2J-历史质检表.xlsx",
 #   output1 = "./Test_QC_result.xlsx",
 #   input6 = "./current_history_results.xlsx",
 #   input7 = "./00_raw_data/config.xlsx",
 #   input8 = "./00_raw_data/SampleSheetUsed.csv",
-#   date = "240705",
+#   date = "240715",
 #   output2 = "./current_history_results_thistime.xlsx",
 #   comparepdf = "Test_QC_compare.pdf",
 #   Retropdf = "Test_QC_retro.pdf"
@@ -373,8 +373,12 @@ df4 <- df4 %>%
 df5 = df4 %>% filter(!is.na(tag_sample))
 
 ##剔除部分重名的病原：后续也要单独核对，以防止重名病原遗漏。
+# 20240722：对于tag_sample 为 NTC，NEG样本,不能剔除这些重名的病原
 df5 = df5 %>% 
-  filter(!patho_namezn %in% c("肠道病毒","肠道病毒A组","人腺病毒E组","人腺病毒C组","人腺病毒21型","人腺病毒B组","人腺病毒")) 
+  filter((tag_sample %in% c("NTC","NEG")) |
+           (!patho_namezn %in% c("肠道病毒","肠道病毒A组","人腺病毒E组","人腺病毒C组","人腺病毒21型","人腺病毒B组","人腺病毒"))) 
+# df5 = df5 %>% 
+#   filter(!patho_namezn %in% c("肠道病毒","肠道病毒A组","人腺病毒E组","人腺病毒C组","人腺病毒21型","人腺病毒B组","人腺病毒")) 
 
 ##根据patho_namezn 将病原分类为：目标、外源、外源内参、人内参等args$input7
 patho_class <- read.xlsx(args$input7,sheet = "patho_class") 
@@ -400,22 +404,23 @@ df5_cc<- df5_cc %>%
   ))
 
 
-##剔除部分重名的病原：后续也要单独核对，以防止重名病原遗漏。
-df5_cc = df5_cc %>% 
-  filter(!patho_namezn %in% c("肠道病毒","肠道病毒A组","人腺病毒E组","人腺病毒C组","人腺病毒21型","人腺病毒B组","人腺病毒")) 
+# ##剔除部分重名的病原：后续也要单独核对，以防止重名病原遗漏。
+# df5_cc = df5_cc %>% 
+#   filter(!patho_namezn %in% c("肠道病毒","肠道病毒A组","人腺病毒E组","人腺病毒C组","人腺病毒21型","人腺病毒B组","人腺病毒")) 
 
 
 df5_cc_temp = df5_cc %>%
   filter(patho_tag == "目标病原") %>%
   select(run,sample,型别,filter_flag,patho_namezn) %>% distinct()
 df5_cc = df5_cc %>%
-  select(run,date,sample,体系,tag,tag_sample,型别,原始数据,Q30,patho_tag,patho_tag2,resis_MutLog,drug_info,
+  select(run,date,sample,体系,tag,tag_sample,型别,原始数据,有效数据比例,Q30,patho_tag,patho_tag2,resis_MutLog,drug_info,
          生产批号,产品检类别,成品对应中间品批号,生产工艺,核酸提取日期,核酸重复次数,提取重复次数,文库浓度,Pooling体积) %>%distinct()
 
 
 ##20240705:使用stop 终止 目标病原为空的情况，并抛出错误
-if (length(df5_cc_temp) == 0) {
-  stop(paste("目标病原记录为空，请检查实验号是否记录错误"))
+##20240716:单次质检可能不会出现企参样本，将stop修改为warn
+if (nrow(df5_cc_temp) == 0) {
+  warning(paste("目标病原记录为空，请检查实验号是否记录错误"))
 }
 
 
@@ -449,9 +454,19 @@ if ("耐药" %in% names(df5_cc_stat) & "敏感" %in% names(df5_cc_stat)) {
 }
 
 ##个性化调整
-df5_cc_stat =df5_cc_stat %>% rename("目标病原" = "型别","其它病原" = "外源病原","目标病原RPK" = "目标病原","目标病原预判" = "filter_flag") %>% 
-  select(run,date,sample,体系,tag,tag_sample,原始数据,Q30,目标病原,目标病原RPK,目标病原预判,contains("内参"),其它病原,resis_info,patho_namezn,
-         生产批号,产品检类别,成品对应中间品批号,生产工艺,核酸提取日期,核酸重复次数,提取重复次数,文库浓度,Pooling体积)
+##20240716：使用trycatch捕获由于无企参样本而造成缺失目标病原造成报错的情况
+df5_cc_stat <-
+  tryCatch({df5_cc_stat =df5_cc_stat %>% rename("目标病原" = "型别","其它病原" = "外源病原","目标病原RPK" = "目标病原","目标病原预判" = "filter_flag") %>% 
+           select(run,date,sample,体系,tag,tag_sample,原始数据,Q30,有效数据比例,目标病原,目标病原RPK,目标病原预判,contains("内参"),其它病原,resis_info,patho_namezn,
+                  生产批号,产品检类别,成品对应中间品批号,生产工艺,核酸提取日期,核酸重复次数,提取重复次数,文库浓度,Pooling体积)}
+         ,error=function(e){
+           cat("Warings：本轮质检无目标病原\n")
+           df5_cc_stat$目标病原 <- "NA"
+           df5_cc_stat =df5_cc_stat %>% rename("目标病原" = "型别","其它病原" = "外源病原","目标病原RPK" = "目标病原","目标病原预判" = "filter_flag") %>% 
+             select(run,date,sample,体系,tag,tag_sample,原始数据,Q30,有效数据比例,目标病原,目标病原RPK,目标病原预判,contains("内参"),其它病原,resis_info,patho_namezn,
+                    生产批号,产品检类别,成品对应中间品批号,生产工艺,核酸提取日期,核酸重复次数,提取重复次数,文库浓度,Pooling体积)
+         })
+
 
 
 df5_cc_stat$目标病原 = gsub("枯草芽孢杆菌","阳性对照品",df5_cc_stat$目标病原)
@@ -471,7 +486,7 @@ list_columns <- sapply(df5_cc_stat, is.list)
 df5_cc_stat[, list_columns] <- lapply(df5_cc_stat[, list_columns], function(x) sapply(x, function(y) paste(y, collapse = ";")))
 df5_cc_stat <- df5_cc_stat %>%
   mutate(总人内参 = rowSums(select(., contains("人内参")) %>% mutate_all(as.numeric), na.rm = TRUE)) %>% 
-  select(run,date,sample,体系,tag,tag_sample,原始数据,Q30,目标病原,目标病原RPK,目标病原预判, matches("总人内参|外源内参"),
+  select(run,date,sample,体系,tag,tag_sample,原始数据,Q30,有效数据比例,目标病原,目标病原RPK,目标病原预判, matches("总人内参|外源内参"),
          其它病原,resis_info,质控评价,patho_namezn,生产批号,产品检类别,成品对应中间品批号,生产工艺,核酸提取日期,核酸重复次数,
          提取重复次数,文库浓度,Pooling体积)
 
@@ -558,7 +573,7 @@ other_pathogen_check <- check_condition2(df5_cc_stat, "其它病原")
 df5_cc_stat <- df5_cc_stat %>%
   mutate(
     最终评价 = case_when(
-      tag_sample == "临床样本" ~ 质控评价,
+      tag_sample %in% c("临床样本", "其它") ~ 质控评价,
       tag_sample == "NTC" & resis_info_check & other_pathogen_check ~ "合格",
       tag_sample == "阴性参考品" & resis_info_check & other_pathogen_check & 总人内参 < 200 ~ "合格",
       tag_sample == "阴性对照品" & resis_info_check & other_pathogen_check & 外源内参 > 50 ~ "合格",
@@ -595,6 +610,7 @@ df5_cc_stat = df5_cc_stat %>%
 df5_cc_stat <- df5_cc_stat %>%
   mutate(不合格原因 = case_when(
     str_detect(最终评价,"不合格") & tag_sample == "临床样本" ~ 质控评价,
+    str_detect(最终评价,"不合格") & tag_sample == "其它" ~ 质控评价,
     str_detect(最终评价,"不合格") & tag_sample %in% c("NTC", "阳性参考品","检测限参考品","阴性参考品","阴性对照品","重复性参考品","阳性对照品")
     & 原始数据 <= 50000 ~ "原始数据不合格",
     str_detect(最终评价,"不合格") & tag_sample %in% c("阳性参考品","检测限参考品","重复性参考品","阳性对照品")
@@ -620,13 +636,14 @@ df5_cc_stat <- df5_cc_stat %>%
   filter(!(patho_namezn == "甲型流感病毒" & has_2009)) %>%
   select(-has_2009)
 
-df5_cc_stat_final = df5_cc_stat %>% select(run,sample,tag_sample,最终评价,不合格原因) %>% 
+df5_cc_stat_final = df5_cc_stat %>% select(run,sample,tag_sample,有效数据比例,最终评价,不合格原因) %>% 
   rename("RUN" = "run","实验编号" = "sample","文库编号" = "tag_sample") %>% as_tibble()
 
 
 
 
 ###添加污染检测表格:df5_cc_other_patho
+###20240716：可能出现本轮质检没有企参、NTC、NEG的情况
 ##########################################################################
 df5_cc_other_patho = df5 %>% filter(tag_sample %in% c("NTC","检测限参考品","阳性参考品","阴性参考品","阴性对照品","阳性对照品","重复性参考品")) %>% 
   filter(!is.na(tag_sample)) 
@@ -645,9 +662,13 @@ if (nrow(df5_cc_other_patho) > 0){
     filter(patho_tag == "外源病原") %>% 
     mutate(sample_frequency = total_sample / same_batch_num) %>% ungroup() %>% 
     select(-patho_tag)
-  
-  
+} else {
+  print("本轮质检没有企参、NTC、NEG相关样本，请确认")
+  df5_cc_other_patho = as.data.frame(matrix(NA,ncol = 5, nrow = 1))
+  colnames(df5_cc_other_patho) <- c("same_batch_num", "patho_namezn", "total_sample", "RPK_median", "sample_frequency")
 }
+
+
 
 
 ##添加百日咳和肺炎的信息：
@@ -732,7 +753,7 @@ if (nrow(sample_compare_df) > 0){
   df6_2 <- left_join(df6_1, df5_cc_stat, by = c("sample_LY" = "sample"),suffix=c("_DJ","_LY")) %>% 
     select(-c(date,目标病原预判,其它病原))
   df6_stat  =df6_2 %>% select(run_DJ,体系_DJ,tag_DJ,tag_sample_DJ,目标病原_DJ,sample_DJ,sample_LY,原始数据_DJ,原始数据_LY,
-                              Q30_DJ,Q30_LY,目标病原RPK_DJ,目标病原RPK_LY,外源内参_DJ,外源内参_LY,总人内参_DJ,总人内参_LY,
+                              Q30_DJ,Q30_LY,有效数据比例_DJ,有效数据比例_LY,目标病原RPK_DJ,目标病原RPK_LY,外源内参_DJ,外源内参_LY,总人内参_DJ,总人内参_LY,
                               resis_info_DJ,resis_info_LY,质控评价_DJ,质控评价_LY,
                               生产批号_DJ,生产批号_LY,文库浓度_DJ,文库浓度_LY,最终评价_DJ,最终评价_LY,不合格原因_DJ,不合格原因_LY) %>% 
     rename(run = run_DJ,体系= 体系_DJ, tag = tag_DJ,tag_sample = tag_sample_DJ,目标病原 = 目标病原_DJ)
@@ -804,9 +825,9 @@ if (nrow(sample_compare_df) > 0){
     group_by(patho_namezn) %>%
     mutate(count = n())
   
-  ##剔除部分重名的病原：后续也要单独核对，以防止重名病原遗漏。
-  df5_all_compare = df5_all_compare %>% 
-    filter(!patho_namezn %in% c("肠道病毒","肠道病毒A组","人腺病毒E组","人腺病毒C组","人腺病毒21型","人腺病毒B组","人腺病毒")) 
+  # ##剔除部分重名的病原：后续也要单独核对，以防止重名病原遗漏。
+  # df5_all_compare = df5_all_compare %>% 
+  #   filter(!patho_namezn %in% c("肠道病毒","肠道病毒A组","人腺病毒E组","人腺病毒C组","人腺病毒21型","人腺病毒B组","人腺病毒")) 
   
   ##双向补充，tag_sample 信息
   df5_all_compare <- df5_all_compare %>%
@@ -1238,6 +1259,7 @@ dev.off()
 ###型别一致的stat,并添加到回顾性信息表中
 ################################################################################
 ################################################################################
+###20240716：注意可能出现单次质检没有企参、NTC、NEG的情况
 df7 = df5 %>% select(-drug_info,-resis_MutLog,-patho_tag) %>% 
   filter(体系 %in% c("T2P2","T3P2","T3P3") & !(tag_sample %in% c("临床样本","其它")))
 
@@ -1322,6 +1344,17 @@ df7_all <- list(
   "临床反馈" = df7_old2
 )
 write.xlsx(df7_all,args$output2)
+
+
+
+
+
+##20240716：检查本轮次质检是否包含企参、NTC、NEG样本，若不包含，则直接终止执行，并生成pre-succeed.log文件
+if (nrow(df7_consist)==0) {
+  unlink(output_dir, recursive = TRUE)
+  file.create(paste0(args$input_run,"/02.Macro/05.QA/pre-succeed.log"))
+  stop("本轮次质检不包含企参、NTC、NEG样本")
+}
 
 
 
