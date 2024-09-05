@@ -553,7 +553,7 @@ check_condition2 <- function(data, column) {
   sapply(strsplit(data[[column]], ";"), function(x) {
     values <- sapply(strsplit(x, "\\|"), `[`, 2)
     values[is.na(values)] <- "滤"
-    all(values == "滤")
+    all(values == "滤")  ##其它病原中全部都是“滤”会被标记为TRUE
   })
 }
 
@@ -599,7 +599,7 @@ df5_cc_stat <- df5_cc_stat %>%
   mutate(
     最终评价 = case_when(
       体系 == "T2P3" & tag_sample %in% c("临床样本", "其它") ~ 质控评价,
-      体系 == "T2P3" & tag_sample %in% c("阳性参考品","阴性参考品") & coincidence == "TRUE" & !str_detect(质控评价,"不合格") ~ "合格",
+      体系 == "T2P3" & tag_sample %in% c("阳性参考品","阴性参考品") & coincidence == "TRUE" & !str_detect(质控评价,"不合格") ~ "合格",   ##可能要考虑阳性参考品中出现耐药基因的污染（区分百日咳）
       体系 == "T2P3" & tag_sample == "检测限参考品"  & resis_info_check & other_pathogen_check & 目标病原预判 != "滤" & 
           !str_detect(目标病原, "百日咳") & !str_detect(质控评价,"不合格")~ "合格",
       体系 == "T2P3" & tag_sample == "检测限参考品" & other_pathogen_check & 目标病原预判 != "滤" & 
@@ -607,7 +607,7 @@ df5_cc_stat <- df5_cc_stat %>%
       体系 == "T2P3" & tag_sample == "阴性对照品" & resis_info_check & other_pathogen_check & 外源内参 > 50 & 
           !str_detect(质控评价,"不合格")~ "合格",
       体系 == "T2P3" & tag_sample == "阳性对照品" & resis_info_check & other_pathogen_check & 外源内参 > 50 & 
-        !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" ~ "合格", 
+          !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" ~ "合格", 
       
       
       体系 != "T2P3" & tag_sample %in% c("临床样本", "其它") ~ 质控评价,
@@ -649,7 +649,7 @@ df5_cc_stat <- df5_cc_stat %>%
     str_detect(最终评价,"不合格") & tag_sample == "临床样本" ~ 质控评价,
     str_detect(最终评价,"不合格") & tag_sample == "其它" ~ 质控评价,
     
-    体系 == "T2P3" & tag_sample %in% c("阳性参考品","阴性参考品")  & str_detect(最终评价,"不合格") & 质控评价 == "不合格" ~ 质控评价,
+    体系 == "T2P3" & tag_sample %in% c("阳性参考品","阴性参考品")  & str_detect(最终评价,"不合格") & str_detect(质控评价,"不合格") ~ 质控评价,
     体系 == "T2P3" & tag_sample %in% c("阳性参考品","阴性参考品")  & str_detect(最终评价,"不合格") & coincidence == "FALSE" ~ "符合率不合格",
     
     str_detect(最终评价,"不合格") & tag_sample %in% c("NTC", "阳性参考品","检测限参考品","阴性参考品","阴性对照品","重复性参考品","阳性对照品")
@@ -669,7 +669,7 @@ df5_cc_stat <- df5_cc_stat %>%
   ))
 
 
-
+df5_cc_stat = df5_cc_stat %>% select(-c("resis_info_check","other_pathogen_check","coincidence"))
 
 
 #20240509修改：针对甲流和甲流2009的情况处理：有2009就按2009 没有2009就按甲流
