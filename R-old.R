@@ -19,9 +19,9 @@ suppressPackageStartupMessages({
   library(stringi)
   # library(patchwork)
 })
-
-#定义调试参数，还未找到很好的解决办法
-# # 202405111修订：增加核对功能： 质检表里的文库名在SampleSheet中是否存在
+# 
+# 定义调试参数，还未找到很好的解决办法
+# 202405111修订：增加核对功能： 质检表里的文库名在SampleSheet中是否存在
 # args <- list(
 #   input_run = ".",
 #   input0 = "./00_raw_data/Patho_report_final_format.addt5.project.sort.zip",
@@ -29,12 +29,12 @@ suppressPackageStartupMessages({
 #   input2 = "./00_raw_data/all_HP_vardect.txt.zip",
 #   input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
 #   input4 = "./00_raw_data/all.drug_mp.txt",
-#   input5 = "./00_raw_data/240715_TPMN00173_0343_A000H5LH2J-历史质检表.xlsx",
+#   input5 = "./00_raw_data/240719_MN00604_0470_A000H7CL5M-历史质检表.xlsx",
 #   output1 = "./Test_QC_result.xlsx",
 #   input6 = "./current_history_results.xlsx",
 #   input7 = "./00_raw_data/config.xlsx",
 #   input8 = "./00_raw_data/SampleSheetUsed.csv",
-#   date = "240715",
+#   date = "240719",
 #   output2 = "./current_history_results_thistime.xlsx",
 #   comparepdf = "Test_QC_compare.pdf",
 #   Retropdf = "Test_QC_retro.pdf"
@@ -158,9 +158,8 @@ df1$体系 <- sapply(
 df1 <- df1 %>%
   rename(sample = 实验号,run=RUN,patho_namezn = 病原体,patho_reads =有效病原数据量,
          patho_RPK = 归一化reads数,filter_flag = 预判结果)
+
 ################################################################################
-
-
 
 
 
@@ -225,14 +224,17 @@ df1$体系 = str_split(df1$sample, "-", simplify = TRUE)[, 1]
 
 
 #按照企参编号匹配型别（目标病原）
-df3_add_patho = read.xlsx(args$input5,sheet = "企参列表") %>% select("编号","型别") %>% distinct()
+##20240904修订，需要根据体系ID匹配对应的企参样本病原
+df3_add_patho = read.xlsx(args$input5,sheet = "企参列表") %>% select("体系编号","编号","型别") %>% distinct()
 
 #20240627修订，将企参编号为na的替换为空，避免由于之间模板表填写不规范而导致的错误。
 df1 = df1 %>% mutate(企参编号 = case_when(
   is.na(企参编号) ~ "",
   TRUE ~ 企参编号
 ))
-df1 <- df1 %>%left_join(df3_add_patho, by = c("企参编号" = "编号"),relationship = "many-to-many")
+
+
+df1 <- df1 %>%left_join(df3_add_patho, by = c("体系" = "体系编号","企参编号" = "编号"),relationship = "many-to-many")
 df1 = df1 %>% rename("tag_sample" = "文库类型","tag" = "temp_id") 
 df1 = df1 %>% filter(tag_sample != "")
 df1 = df1 %>% mutate(型别 = case_when(
@@ -353,8 +355,6 @@ df_drug1 = df_drug1 %>% mutate(
 )
 
 
-
-
 ##对几列进行融合操作
 df_drug1 = df_drug1 %>% filter(resis_MutLog != "不适用") %>% 
   unite("drug_info",resis_name,resis_MutLog,patho_RPK,sep ="|",remove = FALSE) %>% 
@@ -377,11 +377,12 @@ df5 = df4 %>% filter(!is.na(tag_sample))
 df5 = df5 %>% 
   filter((tag_sample %in% c("NTC","NEG")) |
            (!patho_namezn %in% c("肠道病毒","肠道病毒A组","人腺病毒E组","人腺病毒C组","人腺病毒21型","人腺病毒B组","人腺病毒"))) 
-# df5 = df5 %>% 
-#   filter(!patho_namezn %in% c("肠道病毒","肠道病毒A组","人腺病毒E组","人腺病毒C组","人腺病毒21型","人腺病毒B组","人腺病毒")) 
+
 
 ##根据patho_namezn 将病原分类为：目标、外源、外源内参、人内参等args$input7
+##20240910修订：T2P3体系的耐药关系多，需要新读入一个耐药和病原的对应关系，以同步添加到patho_class中
 patho_class <- read.xlsx(args$input7,sheet = "patho_class") 
+
 df5$patho_tag = "外源病原"    #默认都是外源内参，如果需要添加，请在配置文件中调整
 for (i in 1:nrow(patho_class)) {
   df5 <- df5 %>%
@@ -393,6 +394,12 @@ for (i in 1:nrow(patho_class)) {
 }
 
 
+##20240910修订：将patho_namezn 为空的病原分类修改为“未检出病原”
+df5 = df5 %>% mutate(patho_tag = case_when(
+  is.na(patho_namezn) ~ "未检出病原",
+  TRUE ~ patho_tag
+))
+
 ##生成统计表
 df5_cc = df5
 df5_cc$patho_tag2 =df5_cc$patho_tag  ##新定义patho_tag2用以将“外源病原”的信息整合在一起
@@ -400,13 +407,10 @@ df5_cc$patho_RPK = as.character(df5_cc$patho_RPK)
 df5_cc<- df5_cc %>%
   mutate(patho_tag2 = case_when(
     grepl("外源病原", patho_tag) ~ paste0(patho_namezn, "|", filter_flag,"|",patho_RPK),
+    grepl("耐药/毒力基因",patho_tag) ~ paste0(patho_namezn,"|",filter_flag,"|",patho_RPK),
     TRUE ~ patho_RPK ##条件没有满足，则为原来的数字
   ))
 
-
-# ##剔除部分重名的病原：后续也要单独核对，以防止重名病原遗漏。
-# df5_cc = df5_cc %>% 
-#   filter(!patho_namezn %in% c("肠道病毒","肠道病毒A组","人腺病毒E组","人腺病毒C组","人腺病毒21型","人腺病毒B组","人腺病毒")) 
 
 
 df5_cc_temp = df5_cc %>%
@@ -427,6 +431,7 @@ if (nrow(df5_cc_temp) == 0) {
 
 df5_cc_stat = df5_cc %>%  pivot_wider(names_from = patho_tag, values_from = patho_tag2,values_fn = list)  
 df5_cc_stat$外源病原 <- sapply(df5_cc_stat$外源病原, function(x) paste(x, collapse = ";"))
+df5_cc_stat$`耐药/毒力基因` <- sapply(df5_cc_stat$`耐药/毒力基因`, function(x) paste(x, collapse = ";"))
 ##规范耐药信息列
 df5_cc_stat = df5_cc_stat %>% 
   mutate(drug_info = case_when(
@@ -445,6 +450,7 @@ if ("耐药" %in% names(df5_cc_stat) & "敏感" %in% names(df5_cc_stat)) {
   df5_cc_stat = df5_cc_stat %>% unite("resis_info",耐药,敏感,sep =";",remove = TRUE)
   df5_cc_stat$resis_info = gsub("NULL;","",df5_cc_stat$resis_info)
   df5_cc_stat$resis_info = gsub(";NULL","",df5_cc_stat$resis_info)
+  df5_cc_stat$resis_info = gsub("NULL","",df5_cc_stat$resis_info)
 } else if ("耐药" %in% names(df5_cc_stat) & !("敏感" %in% names(df5_cc_stat))){
   df5_cc_stat = df5_cc_stat %>% rename(resis_info = 耐药)
 } else if ("敏感" %in% names(df5_cc_stat) & !("耐药" %in% names(df5_cc_stat))){
@@ -457,13 +463,13 @@ if ("耐药" %in% names(df5_cc_stat) & "敏感" %in% names(df5_cc_stat)) {
 ##20240716：使用trycatch捕获由于无企参样本而造成缺失目标病原造成报错的情况
 df5_cc_stat <-
   tryCatch({df5_cc_stat =df5_cc_stat %>% rename("目标病原" = "型别","其它病原" = "外源病原","目标病原RPK" = "目标病原","目标病原预判" = "filter_flag") %>% 
-           select(run,date,sample,体系,tag,tag_sample,原始数据,Q30,有效数据比例,目标病原,目标病原RPK,目标病原预判,contains("内参"),其它病原,resis_info,patho_namezn,
+           select(run,date,sample,体系,tag,tag_sample,原始数据,Q30,有效数据比例,目标病原,目标病原RPK,目标病原预判,contains("内参"),其它病原,resis_info,`耐药/毒力基因`,patho_namezn,
                   生产批号,产品检类别,成品对应中间品批号,生产工艺,核酸提取日期,核酸重复次数,提取重复次数,文库浓度,Pooling体积)}
          ,error=function(e){
            cat("Warings：本轮质检无目标病原\n")
            df5_cc_stat$目标病原 <- "NA"
            df5_cc_stat =df5_cc_stat %>% rename("目标病原" = "型别","其它病原" = "外源病原","目标病原RPK" = "目标病原","目标病原预判" = "filter_flag") %>% 
-             select(run,date,sample,体系,tag,tag_sample,原始数据,Q30,有效数据比例,目标病原,目标病原RPK,目标病原预判,contains("内参"),其它病原,resis_info,patho_namezn,
+             select(run,date,sample,体系,tag,tag_sample,原始数据,Q30,有效数据比例,目标病原,目标病原RPK,目标病原预判,contains("内参"),其它病原,resis_info,`耐药/毒力基因`,patho_namezn,
                     生产批号,产品检类别,成品对应中间品批号,生产工艺,核酸提取日期,核酸重复次数,提取重复次数,文库浓度,Pooling体积)
          })
 
@@ -487,7 +493,7 @@ df5_cc_stat[, list_columns] <- lapply(df5_cc_stat[, list_columns], function(x) s
 df5_cc_stat <- df5_cc_stat %>%
   mutate(总人内参 = rowSums(select(., contains("人内参")) %>% mutate_all(as.numeric), na.rm = TRUE)) %>% 
   select(run,date,sample,体系,tag,tag_sample,原始数据,Q30,有效数据比例,目标病原,目标病原RPK,目标病原预判, matches("总人内参|外源内参"),
-         其它病原,resis_info,质控评价,patho_namezn,生产批号,产品检类别,成品对应中间品批号,生产工艺,核酸提取日期,核酸重复次数,
+         其它病原,resis_info,`耐药/毒力基因`,质控评价,patho_namezn,生产批号,产品检类别,成品对应中间品批号,生产工艺,核酸提取日期,核酸重复次数,
          提取重复次数,文库浓度,Pooling体积)
 
 
@@ -539,11 +545,11 @@ df5_cc_stat$resis_info = gsub("\", \"", ";",df5_cc_stat$resis_info)
 ##20260627修改：1：简化代码；2：修改目标病原是百日咳可能会给出最终评价为不合格的bug  
 #主要是resis_info会出现为空的情况（检测线参考品、重复性参考品、阳性参考品的样本）
 # 定义检查函数
-check_condition <- function(data, column) {
+check_condition <- function(data, column,threshold) {
   sapply(strsplit(data[[column]], ";"), function(x) {
     values <- as.numeric(sapply(strsplit(x, "\\|"), `[`, 3))
     values[is.na(values)] <- 0
-    all(values < 500)
+    all(values < threshold)   ##T2P2、T3P3小于500会被标记为TRUE；T2P3小于300会被标记为TRUE
   })
 }
 
@@ -551,7 +557,7 @@ check_condition2 <- function(data, column) {
   sapply(strsplit(data[[column]], ";"), function(x) {
     values <- sapply(strsplit(x, "\\|"), `[`, 2)
     values[is.na(values)] <- "滤"
-    all(values == "滤")
+    all(values == "滤")  ##其它病原中全部都是“滤”会被标记为TRUE
   })
 }
 
@@ -565,25 +571,73 @@ df5_cc_stat <- df5_cc_stat %>%
   )
 
 # 中间变量存储检查结果
-resis_info_check <- check_condition(df5_cc_stat, "resis_info")
-other_pathogen_check <- check_condition2(df5_cc_stat, "其它病原")
+# resis_info_check <- check_condition(df5_cc_stat, "resis_info")
+# other_pathogen_check <- check_condition2(df5_cc_stat, "其它病原")
+df5_cc_stat <- df5_cc_stat %>%
+  mutate(
+    resis_info_check_1 = check_condition(df5_cc_stat, "resis_info",500),
+    resis_info_check_2 = check_condition(df5_cc_stat, "resis_info",300),
+     other_pathogen_check = check_condition2(df5_cc_stat, "其它病原")
+  )
+
+
+##20240904修订：添加计算阳性符合率的def
+#阳性参考品：阳性符合率为100%，即检测结果对应目标病原均为阳性；且质控评价为合格
+#阴性参考品：阴性符合率为100%，即其它病原均无阳性；且质控评价为合格
+#检测限参考品：对应的目标病原为阳性，质控评价为合格
+#阳性对照品：对应目标病原为阳性，内参RPK ≥ 50；且质控评价为合格
+#阴性对照品：检测其它病原无阳性，内参RPK ≥ 50；且质控评价为合格
+# check_coincidence = function(data){
+#   data = data %>% group_by(tag_sample) %>% mutate(coincidence = case_when(
+#     tag_sample == "阳性参考品" & all(目标病原预判 == "阳性") ~ "TRUE",
+#     tag_sample == "阴性参考品" & all(!str_detect(其它病原,"阳")) ~ "TRUE",
+#     tag_sample %in% c("检测限参考品","阳性对照品","阴性对照品") ~ "非此类病原，不考虑整体符合率",
+#     TRUE ~ "FALSE"
+#   ))
+# }
+# df5_cc_stat = check_coincidence(df5_cc_stat)
 
 # 更新最终评价列
-##20240705 阴性参考品的合格标准：总人内参 < 200；即不合格原因更改为 总人内参 ≥ 200
+##20240904 对T2P3单独添加最终判断的规则：其余病原污染 + 系统质控 + 阳性符合率
+##20240705 阴性参考品的合格标准：总人内参 > 200
 df5_cc_stat <- df5_cc_stat %>%
   mutate(
     最终评价 = case_when(
+      # tag_sample %in% c("临床样本", "其它") ~ 质控评价,
+      # 体系 == "T2P3" & tag_sample %in% c("阳性参考品","阴性参考品") & !str_detect(质控评价,"不合格") ~ "合格",  
+      # 体系 == "T2P3" & tag_sample == "检测限参考品"  & resis_info_check & other_pathogen_check & 目标病原预判 != "滤" & 
+      #     !str_detect(目标病原, "百日咳") & !str_detect(质控评价,"不合格")~ "合格",
+      # 体系 == "T2P3" & tag_sample == "检测限参考品" & other_pathogen_check & 目标病原预判 != "滤" & 
+      #     str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳") & !str_detect(质控评价,"不合格")~ "合格",
+      # 体系 == "T2P3" & tag_sample == "阴性对照品" & resis_info_check & other_pathogen_check & 外源内参 > 50 & 
+      #     !str_detect(质控评价,"不合格")~ "合格",
+      # 体系 == "T2P3" & tag_sample == "阳性对照品" & resis_info_check & other_pathogen_check & 外源内参 > 50 & 
+      #     !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" ~ "合格", 
+      
+      
       tag_sample %in% c("临床样本", "其它") ~ 质控评价,
-      tag_sample == "NTC" & resis_info_check & other_pathogen_check ~ "合格",
-      tag_sample == "阴性参考品" & resis_info_check & other_pathogen_check & 总人内参 < 200 ~ "合格",
-      tag_sample == "阴性对照品" & resis_info_check & other_pathogen_check & 外源内参 > 50 ~ "合格",
-      tag_sample == "阳性对照品" & resis_info_check & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" ~ "合格",
-      tag_sample == "检测限参考品" & resis_info_check & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
-      tag_sample == "检测限参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|NULL") ~ "合格",
-      tag_sample == "阳性参考品" & resis_info_check & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
-      tag_sample == "阳性参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|NULL") ~ "合格",
-      tag_sample == "重复性参考品" & resis_info_check & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
-      tag_sample == "重复性参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|NULL") ~ "合格",
+      体系 == "T2P3" & tag_sample == "NTC" & resis_info_check_2 & other_pathogen_check ~ "合格",
+      体系 == "T2P3" & tag_sample == "阴性参考品" & resis_info_check_2 & other_pathogen_check & 总人内参 > 200 & !str_detect(质控评价,"不合格") ~ "合格",
+      体系 == "T2P3" & tag_sample == "阴性对照品" & resis_info_check_2 & other_pathogen_check & 外源内参 > 50 ~ "合格",
+      体系 == "T2P3" & tag_sample == "阳性对照品" & resis_info_check_2 & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" ~ "合格",
+      体系 == "T2P3" & tag_sample == "检测限参考品" & resis_info_check_2 & other_pathogen_check & !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      体系 == "T2P3" & tag_sample == "检测限参考品" & other_pathogen_check & !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳") ~ "合格",
+      体系 == "T2P3" & tag_sample == "阳性参考品" & resis_info_check_2 & other_pathogen_check & !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      体系 == "T2P3" & tag_sample == "阳性参考品" & other_pathogen_check & !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳") ~ "合格",
+      体系 == "T2P3" & tag_sample == "重复性参考品" & resis_info_check_2 & other_pathogen_check & !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      体系 == "T2P3" & tag_sample == "重复性参考品" & other_pathogen_check & !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳") ~ "合格",
+      
+      # 体系 != "T2P3" & tag_sample %in% c("临床样本", "其它") ~ 质控评价,
+      体系 != "T2P3" & tag_sample == "NTC" & resis_info_check_1 & other_pathogen_check ~ "合格",
+      体系 != "T2P3" & tag_sample == "阴性参考品" & resis_info_check_1 & other_pathogen_check & 总人内参 > 200 ~ "合格",
+      体系 != "T2P3" & tag_sample == "阴性对照品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 ~ "合格",
+      体系 != "T2P3" & tag_sample == "阳性对照品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" ~ "合格",
+      体系 != "T2P3" & tag_sample == "检测限参考品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      体系 != "T2P3" & tag_sample == "检测限参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳") ~ "合格",
+      体系 != "T2P3" & tag_sample == "阳性参考品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      体系 != "T2P3" & tag_sample == "阳性参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳") ~ "合格",
+      体系 != "T2P3" & tag_sample == "重复性参考品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      tag_sample == "重复性参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳") ~ "合格",
       TRUE ~ "不合格"
     )
   )
@@ -597,8 +651,31 @@ df5_cc_stat = df5_cc_stat %>%
   mutate(最终评价 = case_when(
     str_detect(最终评价,"不合格") ~ "不合格",
     原始数据 <= 50000 ~ "不合格",
+    Q30 < 0.75 ~ "不合格",    ##20240909
     TRUE ~ 最终评价
   ))
+
+
+
+
+##20240910修改：针对NEG（阴性对照品）、POS进行联立判断，但：
+##重复的3个样本中：检出非目标病原2个弱阳或1个阳性，或检出病原耐药RPK>300大于1个样本，或检出人内参RPK>50大于1个样本，认为不合格
+##以上的联立分析不考虑对照（DZ）的POS和NEG
+df5_cc_stat = 
+  df5_cc_stat %>% group_by(体系,生产批号,tag_sample) %>% 
+  mutate(
+    n_弱阳个数 = n_distinct(sample[str_detect(其它病原,"弱阳")]), 
+    n_阳性个数 = n_distinct(sample[str_detect(其它病原,"\\|阳性\\|")]),
+    n_耐药个数 = n_distinct(sample[str_detect(resis_info_check_2,"FALSE")]),
+    n_内参个数 = n_distinct(sample[总人内参 > 50])) %>% ungroup()
+
+df5_cc_stat =
+  df5_cc_stat %>% mutate(最终评价 = case_when(
+  体系 == "T2P3" & tag_sample %in% c("阳性对照品","阴性对照品") & !str_detect(sample,"DZ") &  ##联立判断不考虑对照
+    ((n_弱阳个数 > 2) | (n_阳性个数 > 1) | (n_耐药个数 > 1) | (n_内参个数 > 1)) ~ "不合格",
+  TRUE ~ 最终评价
+))
+
 
 
 
@@ -607,24 +684,59 @@ df5_cc_stat = df5_cc_stat %>%
 ###20240510修改；不合格原因中添加一个“原始数据不合格”的原因
 ###20240702修改；对比未检出目标病原的情况，不合格原因修改为：目标病原漏检
 ###20240705修改；原始数据量不合格标准 ： ≤ 50000
+###20240911修改；给出不合格原因：层级：原始数据不合格；Q30不合格；人内参不合格；目标病原漏检；病原污染；耐药污染
 df5_cc_stat <- df5_cc_stat %>%
   mutate(不合格原因 = case_when(
     str_detect(最终评价,"不合格") & tag_sample == "临床样本" ~ 质控评价,
     str_detect(最终评价,"不合格") & tag_sample == "其它" ~ 质控评价,
-    str_detect(最终评价,"不合格") & tag_sample %in% c("NTC", "阳性参考品","检测限参考品","阴性参考品","阴性对照品","重复性参考品","阳性对照品")
-    & 原始数据 <= 50000 ~ "原始数据不合格",
-    str_detect(最终评价,"不合格") & tag_sample %in% c("阳性参考品","检测限参考品","重复性参考品","阳性对照品")
-    & (目标病原预判 == "滤" | is.na(目标病原预判)) ~ "目标病原漏检",
-    str_detect(最终评价,"不合格") & tag_sample %in% c("NTC", "阳性参考品","检测限参考品","阴性参考品","阴性对照品","重复性参考品","阳性对照品")
-    & str_detect(其它病原, "阳") ~ "病原污染",
-    str_detect(最终评价,"不合格") & tag_sample %in% c("NTC", "阳性参考品","检测限参考品","阴性参考品","阴性对照品","重复性参考品","阳性对照品")
-    & !check_condition(., "resis_info") & !str_detect(目标病原,"百日咳") ~ "耐药污染",
-    str_detect(最终评价,"不合格") & tag_sample %in% c( "阳性参考品","检测限参考品","阴性对照品","重复性参考品","阳性对照品")
-    & 外源内参 <= 50  ~ "外源内参不合格",
-    str_detect(最终评价,"不合格") & tag_sample == "阴性参考品"
-    & 总人内参 >= 200  ~ "人内参不合格",
+    
+    str_detect(最终评价,"不合格") & tag_sample %in% c("NTC", "阳性参考品","检测限参考品","阴性参考品","阴性对照品","重复性参考品","阳性对照品") & 原始数据 <= 50000 ~ "原始数据不合格",
+    str_detect(最终评价,"不合格") & tag_sample %in% c("NTC", "阳性参考品","检测限参考品","阴性参考品","阴性对照品","重复性参考品","阳性对照品") & Q30 <= 0.75 ~ "Q30不合格",
+    
+    体系 == "T2P3" & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") & str_detect(质控评价,"不合格") ~ "内参不合格",
+    体系 == "T2P3" & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") &  (目标病原预判 == "滤" | is.na(目标病原预判)) ~ "目标病原漏检",   
+    体系 == "T2P3" & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") &  other_pathogen_check== "FALSE" ~ "病原污染",
+    体系 == "T2P3" & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") &  resis_info_check_2== "FALSE" & !str_detect(目标病原,"百日咳") ~ "耐药污染",
+    
+    
+    体系 == "T2P3" & tag_sample %in% c("阳性对照品","阴性对照品") & str_detect(最终评价,"不合格") & !str_detect(sample,"DZ") & ((n_内参个数 > 1)) ~ "内参不合格",
+    体系 == "T2P3" & tag_sample == "阳性对照" & str_detect(最终评价,"不合格") & (目标病原预判 == "滤" | is.na(目标病原预判)) ~ "目标病原漏检", 
+    体系 == "T2P3" & tag_sample %in% c("阳性对照品","阴性对照品") & str_detect(最终评价,"不合格") & !str_detect(sample,"DZ") & ((n_弱阳个数 > 2) | (n_阳性个数 > 1)) ~ "病原污染",
+    体系 == "T2P3" & tag_sample %in% c("阳性对照品","阴性对照品") & str_detect(最终评价,"不合格") & !str_detect(sample,"DZ") & ((n_耐药个数 > 1)) ~ "耐药污染",
+
+    tag_sample %in% c( "阳性参考品","检测限参考品","阴性对照品","重复性参考品","阳性对照品") & str_detect(最终评价,"不合格") &  外源内参 <= 50  ~ "外源内参不合格",
+    tag_sample == "阴性参考品" & str_detect(最终评价,"不合格") & 总人内参 <= 200  ~ "人内参不合格",
+    tag_sample %in% c("阳性参考品","检测限参考品","重复性参考品","阳性对照品") & str_detect(最终评价,"不合格") & (目标病原预判 == "滤" | is.na(目标病原预判)) ~ "目标病原漏检",
+    tag_sample %in% c("NTC", "阳性参考品","检测限参考品","阴性参考品","阴性对照品","重复性参考品","阳性对照品") & str_detect(最终评价,"不合格") & str_detect(其它病原, "阳") ~ "病原污染",
+    tag_sample %in% c("NTC", "阳性参考品","检测限参考品","阴性参考品","阴性对照品","重复性参考品","阳性对照品") & str_detect(最终评价,"不合格") & !resis_info_check_1 & !str_detect(目标病原,"百日咳") ~ "耐药污染",
+    # & !check_condition(., "resis_info") & !str_detect(目标病原,"百日咳") ~ "耐药污染",
+
     TRUE ~ NA_character_
   ))
+
+##20240912修订：T2P3的NEG和POS的不合格愿意全部列上
+df5_cc_stat <- df5_cc_stat %>%
+  mutate(不合格原因 = paste(
+    不合格原因, # 保留原来的不合格原因
+    ifelse(体系 == "T2P3" & tag_sample %in% c("阳性对照品", "阴性对照品") & str_detect(最终评价, "不合格") & !str_detect(sample, "DZ") & 原始数据 <= 50000 , "原始数据不合格", ""),
+    ifelse(体系 == "T2P3" & tag_sample %in% c("阳性对照品", "阴性对照品") & str_detect(最终评价, "不合格") & !str_detect(sample, "DZ") & n_内参个数 > 1, "人内参污染", ""),
+    ifelse(体系 == "T2P3" & tag_sample == "阳性对照品" & str_detect(最终评价, "不合格") & (目标病原预判 == "滤" | is.na(目标病原预判)), "目标病原漏检", ""),
+    ifelse(体系 == "T2P3" & tag_sample %in% c("阳性对照品", "阴性对照品") & str_detect(最终评价, "不合格") & !str_detect(sample, "DZ") & (n_弱阳个数 > 2 | n_阳性个数 > 1), "病原污染", ""),
+    ifelse(体系 == "T2P3" & tag_sample %in% c("阳性对照品", "阴性对照品") & str_detect(最终评价, "不合格") & !str_detect(sample, "DZ") & n_耐药个数 > 1, "耐药污染", ""),
+    sep = ";"
+  )) %>%
+  # 去掉空的字符串和多余分号
+  mutate(不合格原因 = gsub(";;;;", ";", 不合格原因),
+         不合格原因 = gsub(";;;", ";", 不合格原因),
+         不合格原因 = gsub(";;", ";", 不合格原因),
+         不合格原因 = gsub("NA", "", 不合格原因),
+         不合格原因 = gsub("^;|;$", "", 不合格原因)
+  )
+
+
+
+
+df5_cc_stat = df5_cc_stat %>% select(-c("resis_info_check_1","resis_info_check_2","other_pathogen_check",matches(("n_"))))
 
 
 #20240509修改：针对甲流和甲流2009的情况处理：有2009就按2009 没有2009就按甲流
@@ -636,7 +748,7 @@ df5_cc_stat <- df5_cc_stat %>%
   filter(!(patho_namezn == "甲型流感病毒" & has_2009)) %>%
   select(-has_2009)
 
-df5_cc_stat_final = df5_cc_stat %>% select(run,sample,tag_sample,有效数据比例,最终评价,不合格原因) %>% 
+df5_cc_stat_final = df5_cc_stat %>% select(体系,生产批号,run,sample,tag_sample,有效数据比例,最终评价,不合格原因) %>% 
   rename("RUN" = "run","实验编号" = "sample","文库编号" = "tag_sample") %>% as_tibble()
 
 
@@ -648,15 +760,14 @@ df5_cc_stat_final = df5_cc_stat %>% select(run,sample,tag_sample,有效数据比
 df5_cc_other_patho = df5 %>% filter(tag_sample %in% c("NTC","检测限参考品","阳性参考品","阴性参考品","阴性对照品","阳性对照品","重复性参考品")) %>% 
   filter(!is.na(tag_sample)) 
 
-
 if (nrow(df5_cc_other_patho) > 0){
   df5_cc_other_patho <- df5_cc_other_patho %>%
-    group_by(生产批号) %>%
+    group_by(体系,生产批号) %>%
     mutate(same_batch_num = n_distinct(sample)) %>% ungroup()
   
   df5_cc_other_patho =
-    df5_cc_other_patho%>% group_by(生产批号,same_batch_num,patho_tag,patho_namezn) %>% 
-    summarise(total_sample = n(),
+    df5_cc_other_patho%>% group_by(体系,生产批号,same_batch_num,patho_tag,patho_namezn) %>% 
+    summarise(total_sample = n_distinct(sample),
               RPK_median = median(patho_RPK,na.rm = TRUE),
               .groups = "drop") %>% 
     filter(patho_tag == "外源病原") %>% 
@@ -676,7 +787,7 @@ df5_cc_other_patho_2 = df5 %>% filter(tag_sample %in% c("NTC","检测限参考�
   filter(!is.na(tag_sample))
 
 df5_cc_other_patho_2 <- df5_cc_other_patho_2 %>%
-  group_by(生产批号) %>%
+  group_by(体系,生产批号) %>%
   mutate(same_batch_num = n_distinct(sample)) %>% ungroup()
 
 df5_cc_other_patho_2 = df5_cc_other_patho_2 %>% 
@@ -686,9 +797,9 @@ df5_cc_other_patho_2 = df5_cc_other_patho_2 %>%
 if(nrow(df5_cc_other_patho_2) > 0){
   df5_cc_other_patho_2 = df5_cc_other_patho_2 %>% 
     separate(drug_info, sep = "\\|", c("patho","drug","RPK"), remove = TRUE) %>%
-    select(sample, 生产批号,patho, RPK,same_batch_num) %>% 
+    select(体系,sample, 生产批号,patho, RPK,same_batch_num) %>% 
     distinct() %>% 
-    group_by(生产批号,same_batch_num,patho) %>% 
+    group_by(体系,生产批号,same_batch_num,patho) %>% 
     summarise(total_sample = n(),
               RPK_median = median(as.numeric(RPK), na.rm = TRUE),
               .groups = "drop") %>% 
@@ -708,19 +819,33 @@ if(nrow(df5_cc_other_patho_2) > 0 & nrow(df5_cc_other_patho) > 0){
 }
 
 
-#添加生信预判:不合格：PK_median > 20  & ratio > 0.5；而对于百日咳耐药的，调整其不合格阈值：RPK median > 500
+
+#添加生信预判:标准如下：20240909修订：
+#非T2P3体系 不合格：PK_median > 20  & ratio > 0.5；而对于百日咳耐药的，调整其不合格阈值：RPK median > 500 
+#T2P3体系 不合格: 
+  #1：非目标病原且非常见背景病原 ratio > 0.4 & total_sample > 2 ; 
+  #2：非目标病原且非常见背景病原 的关联耐药 ratio > 0.5 且 PK_median > 300;
+  #3：对于常见背景病原 ratio > 0.5 且 PK_median > 20；
+
+
+
+Common_patho = c("嗜麦芽窄食单胞菌|洋葱伯克霍尔德菌复合群|阴沟肠杆菌复合群|大肠埃希菌|镰刀菌属")
 if(nrow(df5_cc_other_patho) > 0){
   df5_cc_other_patho = df5_cc_other_patho %>% 
     mutate(生信预判 = case_when(
-      !str_detect(patho_namezn,"百日咳") & sample_frequency > 0.5 & RPK_median > 20 ~ "不合格",
-      str_detect(patho_namezn,"百日咳") & sample_frequency > 0.5 & RPK_median > 500 ~ "不合格",
+      体系!= "T2P3" & !str_detect(patho_namezn,"百日咳") & sample_frequency > 0.5 & RPK_median > 20 ~ "不合格",
+      体系!= "T2P3" & str_detect(patho_namezn,"百日咳") & sample_frequency > 0.5 & RPK_median > 500 ~ "不合格",
+      
+      体系== "T2P3" & !str_detect(patho_namezn,Common_patho)& !str_detect(patho_namezn,"百日咳") & sample_frequency > 0.4 & total_sample > 2 ~ "不合格",
+      体系== "T2P3" & !str_detect(patho_namezn,Common_patho)& str_detect(patho_namezn,"百日咳") & sample_frequency > 0.5 & RPK_median > 300 ~ "不合格",
+      体系== "T2P3" & str_detect(patho_namezn,Common_patho) & sample_frequency > 0.5 & RPK_median > 20 ~ "不合格",
+      
       TRUE ~ "合格"
     ))
 }
 
 #20240510修改：污染病原为空的，删除掉该行
 df5_cc_other_patho = df5_cc_other_patho %>% filter(!is.na(patho_namezn))
-
 ##########################################################################
 
 
@@ -764,9 +889,9 @@ if (nrow(sample_compare_df) > 0){
   ##输出待检-留样对比 表：df5_all_compare
   #对比中的所有样本中的所有病原都进行DJ—LY的对比，
   ########################################################
-  df5_all_compare_origal = df5
+  df5_all_compare_origal = df5 
     # # #添加最终评价：
-  df5_cc_stat_final_cut = df5_cc_stat_final %>% select(-不合格原因)
+  df5_cc_stat_final_cut = df5_cc_stat_final %>% select(-c(不合格原因,体系))
   df5_all_compare_origal = df5_all_compare_origal %>% 
     left_join(df5_cc_stat_final_cut,by=c("run" = "RUN","sample" = "实验编号","tag_sample"= "文库编号"))
 
@@ -825,10 +950,7 @@ if (nrow(sample_compare_df) > 0){
     group_by(patho_namezn) %>%
     mutate(count = n())
   
-  # ##剔除部分重名的病原：后续也要单独核对，以防止重名病原遗漏。
-  # df5_all_compare = df5_all_compare %>% 
-  #   filter(!patho_namezn %in% c("肠道病毒","肠道病毒A组","人腺病毒E组","人腺病毒C组","人腺病毒21型","人腺病毒B组","人腺病毒")) 
-  
+
   ##双向补充，tag_sample 信息
   df5_all_compare <- df5_all_compare %>%
     mutate(tag_sample_DJ = coalesce(tag_sample_DJ, tag_sample_LY),
@@ -840,13 +962,43 @@ if (nrow(sample_compare_df) > 0){
   df5_all_compare = df5_all_compare %>% left_join(df5_all_batch,by=c("sample_LY" = "sample")) %>% rename("生产批号_LY" = "生产批号")
   df5_all_compare = df5_all_compare %>% left_join(df5_all_batch,by=c("sample_DJ" = "sample")) %>% rename("生产批号_DJ" = "生产批号")
   
-df5_all_compare = df5_all_compare %>% filter((str_detect(drug_info_DJ,"肺炎") & str_detect(drug_info_LY,"肺炎")) |
+  df5_all_compare = df5_all_compare %>% filter((str_detect(drug_info_DJ,"肺炎") & str_detect(drug_info_LY,"肺炎")) |
                                                  (str_detect(drug_info_DJ,"百日咳") & str_detect(drug_info_LY,"百日咳")) |
                                                  is.na(drug_info_DJ) | is.na(drug_info_LY))
 
                                                  
   df5_all_compare$patho_rpk_DJ[is.na(df5_all_compare$patho_rpk_DJ)] <- 0
   df5_all_compare$patho_rpk_LY[is.na(df5_all_compare$patho_rpk_LY)] <- 0
+  
+  
+  
+  
+  ##20240508修订：修改df5_all_compare的表头
+  df5_all_compare = df5_all_compare %>% 
+    select(run,体系,tag,tag_sample_DJ,patho_namezn,sample_DJ,sample_LY,patho_rpk_DJ,patho_rpk_LY,
+           原始数据_DJ,原始数据_LY,Q30_DJ,Q30_LY,外源内参_DJ,外源内参_LY,总人内参_DJ,
+           总人内参_LY,质控评价_DJ,质控评价_LY,生产批号_LY,生产批号_DJ,filter_flag_DJ,filter_flag_LY,
+           文库浓度_DJ,文库浓度_LY,最终评价_DJ,最终评价_LY,drug_info_DJ,drug_info_LY) %>% 
+    rename("检出病原" = "patho_namezn","tag_sample" = "tag_sample_DJ",
+           "检出病原RPK_DJ" = "patho_rpk_DJ","检出病原RPK_LY" = "patho_rpk_LY")
+  
+  
+  
+  ##20240722修订：耐药情况添加至添加到 检出病原 中（留样-待检对比）
+  df5_all_compare = df5_all_compare %>% ungroup()
+  df5_all_compare_t1 = df5_all_compare %>% select(-drug_info_DJ,-drug_info_LY) %>% distinct()
+  df5_all_compare_t2 = df5_all_compare %>% select(-c("检出病原",matches("检出病原RPK"))) %>% 
+    separate(drug_info_DJ,sep = "\\|",c("检出病原_DJ","filter_flag_DJ","检出病原RPK_DJ"),remove = TRUE) %>% 
+    separate(drug_info_LY,sep = "\\|",c("检出病原_LY","filter_flag_LY","检出病原RPK_LY"),remove = TRUE) %>% 
+    rename(检出病原 = 检出病原_DJ) %>% select(-c(检出病原_LY)) %>% distinct()
+  
+  df5_all_compare_t1 = df5_all_compare_t1 %>% mutate_at(vars(matches("检出病原RPK")),as.numeric)
+  df5_all_compare_t2 = df5_all_compare_t2 %>% mutate_at(vars(matches("检出病原RPK")),as.numeric)
+  df5_all_compare = bind_rows(df5_all_compare_t1,df5_all_compare_t2) %>% distinct()
+  
+  
+  
+  
   ########################################################  
 } else{
   print("没有对比信息")
@@ -865,23 +1017,20 @@ df5_cc_other_patho_final = df5_cc_other_patho %>% rename(
 ) %>% as_tibble()
 
 
-##20240508修订：修改df5_all_compare的表头
-df5_all_compare = df5_all_compare %>% 
-  select(run,体系,tag,tag_sample_DJ,patho_namezn,sample_DJ,sample_LY,patho_rpk_DJ,patho_rpk_LY,
-         原始数据_DJ,原始数据_LY,Q30_DJ,Q30_LY,外源内参_DJ,外源内参_LY,总人内参_DJ,
-         总人内参_LY,质控评价_DJ,质控评价_LY,生产批号_LY,生产批号_DJ,filter_flag_DJ,filter_flag_LY,
-         文库浓度_DJ,文库浓度_LY,最终评价_DJ,最终评价_LY,drug_info_DJ,drug_info_LY) %>% 
-  rename("检出病原" = "patho_namezn","tag_sample" = "tag_sample_DJ",
-         "检出病原RPK_DJ" = "patho_rpk_DJ","检出病原RPK_LY" = "patho_rpk_LY")
 
 #20240509修改：都把DJ放前，LY放后：
-df5_all_compare2 =df5_all_compare
-df6_stat2 = df6_stat
-
-colnames(df5_all_compare2) <- gsub("^_", "", gsub("(.*)(_DJ)", "\\2_\\1", colnames(df5_all_compare2)))
-colnames(df5_all_compare2) <- gsub("^_", "", gsub("(.*)(_LY)", "\\2_\\1", colnames(df5_all_compare2)))
-colnames(df6_stat2) <- gsub("^_", "", gsub("(.*)(_DJ)", "\\2_\\1", colnames(df6_stat2)))
-colnames(df6_stat2) <- gsub("^_", "", gsub("(.*)(_LY)", "\\2_\\1", colnames(df6_stat2)))
+if (nrow(sample_compare_df) > 0) {
+  df5_all_compare2 =df5_all_compare
+  df6_stat2 = df6_stat
+  
+  colnames(df5_all_compare2) <- gsub("^_", "", gsub("(.*)(_DJ)", "\\2_\\1", colnames(df5_all_compare2)))
+  colnames(df5_all_compare2) <- gsub("^_", "", gsub("(.*)(_LY)", "\\2_\\1", colnames(df5_all_compare2)))
+  colnames(df6_stat2) <- gsub("^_", "", gsub("(.*)(_DJ)", "\\2_\\1", colnames(df6_stat2)))
+  colnames(df6_stat2) <- gsub("^_", "", gsub("(.*)(_LY)", "\\2_\\1", colnames(df6_stat2)))
+  
+} else {
+  print ("没有对比信息")
+}
 
 
 
@@ -980,6 +1129,7 @@ if (nrow(sample_compare_df) > 0){
   print("没有DJ和LY的对比信息，无法绘制质控散点图")
 }
 ################################################################################
+
 
 
 
@@ -1190,53 +1340,8 @@ if (nrow(sample_compare_df) > 0){
     
     
     ##绘制耐药比对图：
+    ##20240722修改：因drug_info_DJ及drug_info_LY剔除，耐药对比不再单独作图了
     #######################################
-    df5_all_compare_drug_plot = df5_all_compare %>% select(体系,sample_DJ,sample_LY,drug_info_DJ,drug_info_LY,tag_sample,生产批号_LY,生产批号_DJ) %>% 
-      separate(drug_info_DJ,sep = "\\|",c("drug_name_DJ","drug_stat_DJ","drug_rpk_DJ"),remove = TRUE) %>% 
-      separate(drug_info_LY,sep = "\\|",c("drug_name_LY","drug_stat_LY","drug_rpk_LY"),remove = TRUE)
-    
-    compare_all_patho =  df5_all_compare_drug_plot %>% 
-      filter(!(is.na(drug_name_DJ) & is.na(drug_name_LY)))
-    compare_all_patho <- compare_all_patho %>%
-      mutate(drug_name_DJ = coalesce(drug_name_DJ, drug_name_LY),
-             drug_name_LY = coalesce(drug_name_LY, drug_name_DJ)) %>% 
-      select(-drug_name_LY) %>% rename("drug_name" = "drug_name_DJ")
-    
-    compare_all_patho$drug_rpk_DJ <- ifelse(is.na(compare_all_patho$drug_rpk_DJ), 0, as.numeric(compare_all_patho$drug_rpk_DJ))
-    compare_all_patho$drug_rpk_LY <- ifelse(is.na(compare_all_patho$drug_rpk_LY), 0, as.numeric(compare_all_patho$drug_rpk_LY))
-    compare_all_patho_tixi = compare_all_patho %>% filter(体系 == tixi_item)
-    
-    drug_terms = compare_all_patho_tixi$drug_name %>% unique()
-    drug_n = length(drug_terms)
-    
-    for (j in 1:drug_n){
-      compare_all_patho_tixi_drug = compare_all_patho_tixi %>% filter(drug_name == drug_terms[j])
-      
-      if (nrow(compare_all_patho_tixi_drug) > 0){
-        drug_p <- 
-          ggplot(compare_all_patho_tixi_drug, aes(drug_rpk_DJ,drug_rpk_LY,color = tag_sample,shape = 生产批号_DJ)) + 
-          geom_point(size = 1.5,alpha = 0.4) +
-          geom_abline(intercept = 0, slope = 1, color = "#FF6600", linetype = "dashed",linewidth = 1) +
-          geom_abline(intercept = 0, slope = 0.5, color = "green",linetype = "dashed",linewidth = 0.3) +
-          geom_abline(intercept = 0, slope = 0.25, color = "red",linetype = "dashed",linewidth = 0.3) +   
-          geom_abline(intercept = 0, slope = 2, color = "red",linetype = "dashed",linewidth = 0.3) + 
-          geom_abline(intercept = 0, slope = 4, color = "green",linetype = "dashed",linewidth = 0.3) +
-          scale_x_continuous(limits = c(0,max(compare_all_patho_tixi_drug$drug_rpk_DJ, compare_all_patho_tixi_drug$drug_rpk_LY, na.rm = TRUE))) +
-          scale_y_continuous(limits = c(0,max(compare_all_patho_tixi_drug$drug_rpk_DJ, compare_all_patho_tixi_drug$drug_rpk_LY, na.rm = TRUE))) +
-          theme_bw() + ggtitle(paste0(tixi_item,"-",drug_terms[j], "-对比")) +
-          theme(panel.grid = element_blank(),
-                text = element_text(size = 8), 
-                axis.text = element_text(size = 6), 
-                axis.title = element_text(size = 6),
-                plot.title = element_text(size = 8), 
-                legend.text = element_text(size = 6), 
-                legend.title = element_text(size = 6)
-          )
-        
-        # 将图形对象添加到列表中
-        all_plots[[paste0(tixi_item,"_", drug_terms[j])]] <- drug_p
-      }
-    }
   } 
 }else {
   print("没有DJ和LY的对比信息，无法绘制单个病原对比分析图")
