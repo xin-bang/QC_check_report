@@ -430,8 +430,16 @@ if (nrow(df5_cc_temp) == 0) {
 
 
 df5_cc_stat = df5_cc %>%  pivot_wider(names_from = patho_tag, values_from = patho_tag2,values_fn = list)  
-df5_cc_stat$外源病原 <- sapply(df5_cc_stat$外源病原, function(x) paste(x, collapse = ";"))
-df5_cc_stat$`耐药/毒力基因` <- sapply(df5_cc_stat$`耐药/毒力基因`, function(x) paste(x, collapse = ";"))
+
+#20240914修订：修复当df5_cc_stat不存在”外源病原“和 `耐药/毒力基因` 列时的报错
+# df5_cc_stat$外源病原 <- sapply(df5_cc_stat$外源病原, function(x) paste(x, collapse = ";"))
+df5_cc_stat$外源病原 <- if ("外源病原" %in% colnames(df5_cc_stat)) {
+  sapply(df5_cc_stat$外源病原, function(x) paste(x, collapse = ";"))
+} else {""}
+df5_cc_stat$`耐药/毒力基因` <- if ("耐药/毒力基因" %in% colnames(df5_cc_stat)) {
+  sapply(df5_cc_stat$`耐药/毒力基因`, function(x) paste(x, collapse = ";"))
+} else {""}
+
 ##规范耐药信息列
 df5_cc_stat = df5_cc_stat %>% 
   mutate(drug_info = case_when(
@@ -829,7 +837,7 @@ if(nrow(df5_cc_other_patho_2) > 0 & nrow(df5_cc_other_patho) > 0){
 
 
 
-Common_patho = c("嗜麦芽窄食单胞菌|洋葱伯克霍尔德菌复合群|阴沟肠杆菌复合群|大肠埃希菌|镰刀菌属")
+Common_patho = c("嗜麦芽窄食单胞菌|洋葱伯克霍尔德菌复合群|阴沟肠杆菌复合群|大肠埃希菌|镰刀菌属|铜绿假单胞菌")
 if(nrow(df5_cc_other_patho) > 0){
   df5_cc_other_patho = df5_cc_other_patho %>% 
     mutate(生信预判 = case_when(
@@ -987,9 +995,13 @@ if (nrow(sample_compare_df) > 0){
   ##20240722修订：耐药情况添加至添加到 检出病原 中（留样-待检对比）
   df5_all_compare = df5_all_compare %>% ungroup()
   df5_all_compare_t1 = df5_all_compare %>% select(-drug_info_DJ,-drug_info_LY) %>% distinct()
+
+  ##20240914：修复bug, DJ和LY都无耐药信息或 DJ无耐药信息时，最终造成检出病原为空的情况
   df5_all_compare_t2 = df5_all_compare %>% select(-c("检出病原",matches("检出病原RPK"))) %>% 
+    filter(!(is.na(drug_info_DJ) & is.na(drug_info_LY))) %>% 
     separate(drug_info_DJ,sep = "\\|",c("检出病原_DJ","filter_flag_DJ","检出病原RPK_DJ"),remove = TRUE) %>% 
     separate(drug_info_LY,sep = "\\|",c("检出病原_LY","filter_flag_LY","检出病原RPK_LY"),remove = TRUE) %>% 
+    mutate(检出病原_DJ = case_when(is.na(检出病原_DJ) ~ 检出病原_LY,TRUE ~ 检出病原_DJ)) %>%    #以DJ的耐药信息代表检出病原（耐药）
     rename(检出病原 = 检出病原_DJ) %>% select(-c(检出病原_LY)) %>% distinct()
   
   df5_all_compare_t1 = df5_all_compare_t1 %>% mutate_at(vars(matches("检出病原RPK")),as.numeric)
