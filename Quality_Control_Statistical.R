@@ -1,4 +1,4 @@
-#本流程目前仅适用于T2P2;T2P3;T3P3；T11的流程质控分析；
+#本流程目前仅适用于T2P2;T2P3;T3P3；T11A；T11B的流程质控分析；
 #其中回顾性统计仅针对T2P2;T3P2;回顾性绘图中也仅针对DJ，LY标准
 #编辑：20240501
 
@@ -22,46 +22,46 @@ suppressPackageStartupMessages({
 
 ## 定义调试参数，还未找到很好的解决办法
 ## 202405111修订：增加核对功能： 质检表里的文库名在SampleSheet中是否存在
-args <- list(
-  input_run = ".",
-  input0 = "./00_raw_data/Patho_report_final_format.addt5.project.sort.zip",
-  input1 = "./00_raw_data/QC_report_for_experiment.addt5.xls.zip",
-  input2 = "./00_raw_data/all_HP_vardect.txt.zip",
-  input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
-  input4 = "./00_raw_data/all.drug_mp.txt",
-  input5 = "./00_raw_data/240928_MN00604_0513_A000H5VVVM-历史质检表.xlsx",
-  output1 = "./Test_QC_result.xlsx",
-  input6 = "./current_history_results.xlsx",
-  input7 = "./00_raw_data/config.xlsx",
-  input8 = "./00_raw_data/SampleSheetUsed.csv",
-  date = "240719",
-  output2 = "./current_history_results_thistime.xlsx",
-  comparepdf = "Test_QC_compare.pdf",
-  Retropdf = "Test_QC_retro.pdf"
-)
+# args <- list(
+#   input_run = ".",
+#   input0 = "./00_raw_data/Patho_report_final_format.addt5.project.sort.zip",
+#   input1 = "./00_raw_data/QC_report_for_experiment.addt5.xls.zip",
+#   input2 = "./00_raw_data/all_HP_vardect.txt.zip",
+#   input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
+#   input4 = "./00_raw_data/all.drug_mp.txt",
+#   input5 = "./00_raw_data/240928_MN00604_0513_A000H5VVVM-历史质检表.xlsx",
+#   output1 = "./Test_QC_result.xlsx",
+#   input6 = "./current_history_results.xlsx",
+#   input7 = "./00_raw_data/config.xlsx",
+#   input8 = "./00_raw_data/SampleSheetUsed.csv",
+#   date = "240719",
+#   output2 = "./current_history_results_thistime.xlsx",
+#   comparepdf = "Test_QC_compare.pdf",
+#   Retropdf = "Test_QC_retro.pdf"
+# )
 
 
 
 
 
 # 参数定义：
-# parser <- ArgumentParser(description="用于质控信息数据分析，目前仅针对T2P2、T3P3、T3P2以及T11中的企参和临床样本；其余类型样本无法分析")
-# parser$add_argument("--input_run", help="输入待分析run的path")
-# parser$add_argument("--input0", help="输入Patho_report_final_format.addt5.project.sort.zip")
-# parser$add_argument("--input1", help="输入QC_report_for_experiment.addt5.xls.zip")
-# parser$add_argument("--input2", help="输入all_HP_vardect.txt.zip")
-# parser$add_argument("--input3", help="输入Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip")
-# parser$add_argument("--input4", help="输入all.drug_mp.txt")
-# parser$add_argument("--input5", help="输入质检软件SampleSheet模板表,注意需要核对样本名是否规范！！！")
-# parser$add_argument("--output1", help="质控信息分析结果表名称")
-# parser$add_argument("--input6", help="输入回顾性信息表")
-# parser$add_argument("--input7", help="输入配置文件")
-# parser$add_argument("--input8",help = "输入SampleSheetUsed.csv文件")
-# parser$add_argument("--date", nargs='?', type="character", help="回顾性中指定日期，格式如240306")
-# parser$add_argument("--output2", help="纳入本轮质控分析结果的回顾性表名称")
-# parser$add_argument("--comparepdf", help="输出对比分析的pdf,仅在Compare为True起作用")
-# parser$add_argument("--Retropdf", help="输出回顾性分析的pdf,仅在Rstro为True起作用")
-# args <- parser$parse_args()     # 解析参数
+parser <- ArgumentParser(description="用于质控信息数据分析，目前仅针对T2P2、T3P3、T3P2以及T11中的企参和临床样本；其余类型样本无法分析")
+parser$add_argument("--input_run", help="输入待分析run的path")
+parser$add_argument("--input0", help="输入Patho_report_final_format.addt5.project.sort.zip")
+parser$add_argument("--input1", help="输入QC_report_for_experiment.addt5.xls.zip")
+parser$add_argument("--input2", help="输入all_HP_vardect.txt.zip")
+parser$add_argument("--input3", help="输入Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip")
+parser$add_argument("--input4", help="输入all.drug_mp.txt")
+parser$add_argument("--input5", help="输入质检软件SampleSheet模板表,注意需要核对样本名是否规范！！！")
+parser$add_argument("--output1", help="质控信息分析结果表名称")
+parser$add_argument("--input6", help="输入回顾性信息表")
+parser$add_argument("--input7", help="输入配置文件")
+parser$add_argument("--input8",help = "输入SampleSheetUsed.csv文件")
+parser$add_argument("--date", nargs='?', type="character", help="回顾性中指定日期，格式如240306")
+parser$add_argument("--output2", help="纳入本轮质控分析结果的回顾性表名称")
+parser$add_argument("--comparepdf", help="输出对比分析的pdf,仅在Compare为True起作用")
+parser$add_argument("--Retropdf", help="输出回顾性分析的pdf,仅在Rstro为True起作用")
+args <- parser$parse_args()     # 解析参数
 
 
 
@@ -627,30 +627,30 @@ df5_cc_stat <- df5_cc_stat %>%
       体系 == "T2P3" & tag_sample == "重复性参考品" & other_pathogen_check & !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
       
       
-      #20241010修订；①：感染1000没有加外源内参，人内参。对于外源内参 < 50 则判为合格；人内参 ≤ 200 则判为合格；②：T11t体系不考虑质控评价列
-      体系 == "T11A" & tag_sample == "NTC" & resis_info_check_2 & other_pathogen_check ~ "合格",
-      体系 == "T11A" & tag_sample == "阴性参考品" & resis_info_check_2 & other_pathogen_check & 总人内参 <= 200  ~ "合格",
-      体系 == "T11A" & tag_sample == "阴性对照品" & resis_info_check_2 & other_pathogen_check & 外源内参 < 50 ~ "合格",
-      体系 == "T11A" & tag_sample == "阳性对照品" & resis_info_check_2 & other_pathogen_check & 外源内参 < 50 & 目标病原预判 != "滤" ~ "合格",
-      体系 == "T11A" & tag_sample == "检测限参考品" & resis_info_check_2 & other_pathogen_check & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
-      体系 == "T11A" & tag_sample == "检测限参考品" & other_pathogen_check & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
-      体系 == "T11A" & tag_sample == "阳性参考品" & resis_info_check_2 & other_pathogen_check & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
-      体系 == "T11A" & tag_sample == "阳性参考品" & other_pathogen_check & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
-      体系 == "T11A" & tag_sample == "重复性参考品" & resis_info_check_2 & other_pathogen_check & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
-      体系 == "T11A" & tag_sample == "重复性参考品" & other_pathogen_check & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
+      #20241010修订；①：感染1000没有加外源内参，人内参。对于外源内参 < 50 则判为合格；人内参 ≤ 200 则判为合格；②：T11体系不考虑质控评价列
+      体系 %in% c("T11A","T11B") & tag_sample == "NTC" & resis_info_check_2 & other_pathogen_check ~ "合格",
+      体系 %in% c("T11A","T11B") & tag_sample == "阴性参考品" & resis_info_check_2 & other_pathogen_check & 总人内参 <= 200  ~ "合格",
+      体系 %in% c("T11A","T11B") & tag_sample == "阴性对照品" & resis_info_check_2 & other_pathogen_check & 外源内参 < 50 ~ "合格",
+      体系 %in% c("T11A","T11B") & tag_sample == "阳性对照品" & resis_info_check_2 & other_pathogen_check & 外源内参 < 50 & 目标病原预判 != "滤" ~ "合格",
+      体系 %in% c("T11A","T11B") & tag_sample == "检测限参考品" & resis_info_check_2 & other_pathogen_check & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      体系 %in% c("T11A","T11B") & tag_sample == "检测限参考品" & other_pathogen_check & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
+      体系 %in% c("T11A","T11B") & tag_sample == "阳性参考品" & resis_info_check_2 & other_pathogen_check & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      体系 %in% c("T11A","T11B") & tag_sample == "阳性参考品" & other_pathogen_check & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
+      体系 %in% c("T11A","T11B") & tag_sample == "重复性参考品" & resis_info_check_2 & other_pathogen_check & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      体系 %in% c("T11A","T11B") & tag_sample == "重复性参考品" & other_pathogen_check & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
       
       
       
-      体系 != "T2P3" & 体系 != "T11A" & tag_sample == "NTC" & resis_info_check_1 & other_pathogen_check ~ "合格",
-      体系 != "T2P3" & 体系 != "T11A" & tag_sample == "阴性参考品" & resis_info_check_1 & other_pathogen_check & 总人内参 > 200 ~ "合格",
-      体系 != "T2P3" & 体系 != "T11A" & tag_sample == "阴性对照品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 ~ "合格",
-      体系 != "T2P3" & 体系 != "T11A" & tag_sample == "阳性对照品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" ~ "合格",
-      体系 != "T2P3" & 体系 != "T11A" & tag_sample == "检测限参考品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
-      体系 != "T2P3" & 体系 != "T11A" & tag_sample == "检测限参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
-      体系 != "T2P3" & 体系 != "T11A" & tag_sample == "阳性参考品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
-      体系 != "T2P3" & 体系 != "T11A" & tag_sample == "阳性参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳^$") ~ "合格",
-      体系 != "T2P3" & 体系 != "T11A" & tag_sample == "重复性参考品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
-      体系 != "T2P3" & 体系 != "T11A" & tag_sample == "重复性参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳^$") ~ "合格",
+      !体系 %in% c("T2P3","T11A","T11B") & tag_sample == "NTC" & resis_info_check_1 & other_pathogen_check ~ "合格",
+      !体系 %in% c("T2P3","T11A","T11B") & tag_sample == "阴性参考品" & resis_info_check_1 & other_pathogen_check & 总人内参 > 200 ~ "合格",
+      !体系 %in% c("T2P3","T11A","T11B") & tag_sample == "阴性对照品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 ~ "合格",
+      !体系 %in% c("T2P3","T11A","T11B") & tag_sample == "阳性对照品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" ~ "合格",
+      !体系 %in% c("T2P3","T11A","T11B") & tag_sample == "检测限参考品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      !体系 %in% c("T2P3","T11A","T11B") & tag_sample == "检测限参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
+      !体系 %in% c("T2P3","T11A","T11B") & tag_sample == "阳性参考品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      !体系 %in% c("T2P3","T11A","T11B") & tag_sample == "阳性参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳^$") ~ "合格",
+      !体系 %in% c("T2P3","T11A","T11B") & tag_sample == "重复性参考品" & resis_info_check_1 & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      !体系 %in% c("T2P3","T11A","T11B") & tag_sample == "重复性参考品" & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳^$") ~ "合格",
       TRUE ~ "不合格"
     )
   )
@@ -674,6 +674,7 @@ df5_cc_stat = df5_cc_stat %>%
 ##20240910修改：针对NEG（阴性对照品）、POS进行联立判断，但：
 ##重复的3个样本中：检出非目标病原2个弱阳或1个阳性，或检出病原耐药RPK>300大于1个样本，或检出人内参RPK>50大于1个样本，认为不合格
 ##以上的联立分析不考虑对照（DZ）的POS和NEG
+##20241010修订：以上判断建立在T11体系和T2P3体系的POS和NEG
 df5_cc_stat = 
   df5_cc_stat %>% group_by(体系,生产批号,tag_sample) %>% 
   mutate(
@@ -684,7 +685,7 @@ df5_cc_stat =
 
 df5_cc_stat =
   df5_cc_stat %>% mutate(最终评价 = case_when(
-    体系 == "T2P3" & tag_sample %in% c("阳性对照品","阴性对照品") & !str_detect(sample,"DZ") &  ##联立判断不考虑对照
+    体系 %in%  c("T2P3","T11A","T11B") & tag_sample %in% c("阳性对照品","阴性对照品") & !str_detect(sample,"DZ") &  ##联立判断不考虑对照
       ((n_弱阳个数 > 2) | (n_阳性个数 > 1) | (n_耐药个数 > 1) | (n_内参个数 > 1)) ~ "不合格",
     TRUE ~ 最终评价
   ))
@@ -719,16 +720,17 @@ df5_cc_stat <- df5_cc_stat %>%
     体系 == "T2P3" & tag_sample %in% c("阳性对照品","阴性对照品") & str_detect(最终评价,"不合格") & !str_detect(sample,"DZ") & ((n_弱阳个数 > 2) | (n_阳性个数 > 1)) ~ "病原污染",
     体系 == "T2P3" & tag_sample %in% c("阳性对照品","阴性对照品") & str_detect(最终评价,"不合格") & !str_detect(sample,"DZ") & ((n_耐药个数 > 1)) ~ "耐药污染",
     
-    #T11A体系
-    # 体系 == "T11A" & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") & str_detect(质控评价,"不合格") ~ "内参不合格",
-    体系 == "T11A" & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") &  (目标病原预判 == "滤" | is.na(目标病原预判)) ~ "目标病原漏检",   
-    体系 == "T11A" & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") &  other_pathogen_check== "FALSE" ~ "病原污染",
-    体系 == "T11A" & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") &  resis_info_check_2== "FALSE" ~ "耐药污染",
+    #T11体系
+    体系 %in% c("T11A","T11B") & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") &  (目标病原预判 == "滤" | is.na(目标病原预判)) ~ "目标病原漏检",   
+    体系 %in% c("T11A","T11B") & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") &  other_pathogen_check== "FALSE" ~ "病原污染",
+    体系 %in% c("T11A","T11B") & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") &  resis_info_check_2== "FALSE" ~ "耐药污染",
+    体系 %in% c("T11A","T11B") & tag_sample == "阴性参考品" & str_detect(最终评价,"不合格")  & 总人内参 > 200 ~ "内参不合格",
     
-    体系 == "T11A" & tag_sample %in% c("阳性对照品","阴性对照品") & str_detect(最终评价,"不合格")  & ((n_内参个数 > 1)) ~ "内参不合格",
-    体系 == "T11A" & tag_sample == "阳性对照" & str_detect(最终评价,"不合格") & (目标病原预判 == "滤" | is.na(目标病原预判)) ~ "目标病原漏检", 
-    体系 == "T11A" & tag_sample %in% c("阳性对照品","阴性对照品") & str_detect(最终评价,"不合格") & ((n_弱阳个数 > 2) | (n_阳性个数 > 1)) ~ "病原污染",
-    体系 == "T11A" & tag_sample %in% c("阳性对照品","阴性对照品") & str_detect(最终评价,"不合格") & ((n_耐药个数 > 1)) ~ "耐药污染",    
+    
+    体系 %in% c("T11A","T11B") & tag_sample %in% c("阳性对照品","阴性对照品") & str_detect(最终评价,"不合格")  & ((n_内参个数 > 1)) ~ "内参不合格",
+    体系 %in% c("T11A","T11B") & tag_sample == "阳性对照" & str_detect(最终评价,"不合格") & (目标病原预判 == "滤" | is.na(目标病原预判)) ~ "目标病原漏检", 
+    体系 %in% c("T11A","T11B") & tag_sample %in% c("阳性对照品","阴性对照品") & str_detect(最终评价,"不合格") & ((n_弱阳个数 > 2) | (n_阳性个数 > 1)) ~ "病原污染",
+    体系 %in% c("T11A","T11B") & tag_sample %in% c("阳性对照品","阴性对照品") & str_detect(最终评价,"不合格") & ((n_耐药个数 > 1)) ~ "耐药污染",    
     
     
     #其余体系
@@ -742,7 +744,7 @@ df5_cc_stat <- df5_cc_stat %>%
   ))
 
 ##20240912修订：新增T2P3体系：将NEG和POS的不合格原因全部列上
-##20241009修订：新增TA11体系：将NEG和POS的不合格原因全部列上
+##20241009修订：新增T11体系：将NEG和POS的不合格原因全部列上
 df5_cc_stat <- df5_cc_stat %>%
   mutate(不合格原因 = paste(
     不合格原因, # 保留原来的不合格原因
@@ -752,11 +754,11 @@ df5_cc_stat <- df5_cc_stat %>%
     ifelse(体系 == "T2P3" & tag_sample %in% c("阳性对照品", "阴性对照品") & str_detect(最终评价, "不合格") & !str_detect(sample, "DZ") & (n_弱阳个数 > 2 | n_阳性个数 > 1), "病原污染", ""),
     ifelse(体系 == "T2P3" & tag_sample %in% c("阳性对照品", "阴性对照品") & str_detect(最终评价, "不合格") & !str_detect(sample, "DZ") & n_耐药个数 > 1, "耐药污染", ""),
     
-    ifelse(体系 == "T11A" & tag_sample %in% c("阳性对照品", "阴性对照品") & str_detect(最终评价, "不合格") &  原始数据 <= 50000 , "原始数据不合格", ""),
-    ifelse(体系 == "T11A" & tag_sample %in% c("阳性对照品", "阴性对照品") & str_detect(最终评价, "不合格") &  n_内参个数 > 1, "人内参污染", ""),
-    ifelse(体系 == "T11A" & tag_sample == "阳性对照品" & str_detect(最终评价, "不合格") & (目标病原预判 == "滤" | is.na(目标病原预判)), "目标病原漏检", ""),
-    ifelse(体系 == "T11A" & tag_sample %in% c("阳性对照品", "阴性对照品") & str_detect(最终评价, "不合格") & (n_弱阳个数 > 2 | n_阳性个数 > 1), "病原污染", ""),
-    ifelse(体系 == "T11A" & tag_sample %in% c("阳性对照品", "阴性对照品") & str_detect(最终评价, "不合格") & n_耐药个数 > 1, "耐药污染", ""),
+    ifelse(体系 %in% c("T11A","T11B") & tag_sample %in% c("阳性对照品", "阴性对照品") & str_detect(最终评价, "不合格") &  原始数据 <= 50000 , "原始数据不合格", ""),
+    ifelse(体系 %in% c("T11A","T11B") & tag_sample %in% c("阳性对照品", "阴性对照品") & str_detect(最终评价, "不合格") &  n_内参个数 > 1, "人内参污染", ""),
+    ifelse(体系 %in% c("T11A","T11B") & tag_sample == "阳性对照品" & str_detect(最终评价, "不合格") & (目标病原预判 == "滤" | is.na(目标病原预判)), "目标病原漏检", ""),
+    ifelse(体系 %in% c("T11A","T11B") & tag_sample %in% c("阳性对照品", "阴性对照品") & str_detect(最终评价, "不合格") & (n_弱阳个数 > 2 | n_阳性个数 > 1), "病原污染", ""),
+    ifelse(体系 %in% c("T11A","T11B") & tag_sample %in% c("阳性对照品", "阴性对照品") & str_detect(最终评价, "不合格") & n_耐药个数 > 1, "耐药污染", ""),
     sep = ";"
   )) %>%
   # 去掉空的字符串和多余分号
@@ -878,15 +880,15 @@ Common_patho_TA11 = c("嗜麦芽窄食单胞菌|洋葱伯克霍尔德菌复合�
 if(nrow(df5_cc_other_patho) > 0){
   df5_cc_other_patho = df5_cc_other_patho %>% 
     mutate(生信预判 = case_when(
-      体系!= "T2P3" & !str_detect(patho_namezn,"百日咳") & sample_frequency > 0.5 & RPK_median > 20 ~ "不合格",
-      体系!= "T2P3" & str_detect(patho_namezn,"百日咳") & sample_frequency > 0.5 & RPK_median > 500 ~ "不合格",
+      !体系 %in% c("T2P3","T11A","T11B") & !str_detect(patho_namezn,"百日咳") & sample_frequency > 0.5 & RPK_median > 20 ~ "不合格",
+      !体系 %in% c("T2P3","T11A","T11B") & str_detect(patho_namezn,"百日咳") & sample_frequency > 0.5 & RPK_median > 500 ~ "不合格",
       
       体系== "T2P3" & !str_detect(patho_namezn,Common_patho_T2P3)& !str_detect(patho_namezn,"百日咳") & sample_frequency > 0.4 & total_sample > 2 ~ "不合格",
       体系== "T2P3" & !str_detect(patho_namezn,Common_patho_T2P3)& str_detect(patho_namezn,"百日咳") & sample_frequency > 0.5 & RPK_median > 300 ~ "不合格",
       体系== "T2P3" & str_detect(patho_namezn,Common_patho_T2P3) & sample_frequency > 0.5 & RPK_median > 20 ~ "不合格",
       
-      体系== "T11A" & !str_detect(patho_namezn,Common_patho_TA11)& !str_detect(patho_namezn,"百日咳") & sample_frequency > 0.5 & total_sample > 2 ~ "不合格",
-      体系== "T11A" & str_detect(patho_namezn,Common_patho_TA11) & sample_frequency > 0.5 & RPK_mean > 50 ~ "不合格",
+      体系 %in% c("T11A","T11B") & !str_detect(patho_namezn,Common_patho_TA11)& !str_detect(patho_namezn,"百日咳") & sample_frequency > 0.5 & total_sample > 2 ~ "不合格",
+      体系 %in% c("T11A","T11B") & str_detect(patho_namezn,Common_patho_TA11) & sample_frequency > 0.5 & RPK_mean > 50 ~ "不合格",
       
       TRUE ~ "合格"
     ))
