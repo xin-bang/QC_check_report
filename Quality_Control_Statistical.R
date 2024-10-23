@@ -29,12 +29,12 @@ suppressPackageStartupMessages({
 #   input2 = "./00_raw_data/all_HP_vardect.txt.zip",
 #   input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
 #   input4 = "./00_raw_data/all.drug_mp.txt",
-#   input5 = "./00_raw_data/240928_MN00604_0513_A000H5VVVM-历史质检表.xlsx",
+#   input5 = "./00_raw_data/241022_TPMN00238_0268_A000H7J5HV-历史质检表.xlsx",
 #   output1 = "./Test_QC_result.xlsx",
 #   input6 = "./current_history_results.xlsx",
 #   input7 = "./00_raw_data/config.xlsx",
 #   input8 = "./00_raw_data/SampleSheetUsed.csv",
-#   date = "240719",
+#   date = "241022",
 #   output2 = "./current_history_results_thistime.xlsx",
 #   comparepdf = "Test_QC_compare.pdf",
 #   Retropdf = "Test_QC_retro.pdf"
@@ -44,7 +44,7 @@ suppressPackageStartupMessages({
 
 
 
-# 参数定义：
+# # 参数定义：
 parser <- ArgumentParser(description="用于质控信息数据分析，目前仅针对T2P2、T3P3、T3P2以及T11中的企参和临床样本；其余类型样本无法分析")
 parser$add_argument("--input_run", help="输入待分析run的path")
 parser$add_argument("--input0", help="输入Patho_report_final_format.addt5.project.sort.zip")
@@ -906,6 +906,9 @@ df5_cc_other_patho = df5_cc_other_patho %>% filter(!is.na(patho_namezn))
 #################################################################################
 sample_compare_df = read.xlsx(args$input5,sheet = "表2-对比信息表") #核对名称是否规范
 
+#20241023修订：sample_compare_df剔除不成对的样本行
+sample_compare_df = sample_compare_df %>% filter(!is.na(`待检试剂-对应文库`) & !is.na(`留样试剂-对应文库`))
+
 ##判断sample_compare_df中是否为空，非空才执行；
 if (nrow(sample_compare_df) > 0){
   sample_compare_df = sample_compare_df %>% 
@@ -1060,7 +1063,8 @@ if (nrow(sample_compare_df) > 0){
   print("没有对比信息")
 }
 
-
+#20241023修订：修复绘图可能出现的Removed 3 rows containing missing
+df5_all_compare = df5_all_compare %>% mutate(across(matches("检出病原RPK"),~replace_na(.,0)))
 
 
 ###20240506修改；修改Excel的顺序
@@ -1133,6 +1137,8 @@ tixi_n = length(tixi)
 
 
 #####所有样本中的质控散点图,按照体系来绘制
+####20241023修订：sample_compare_df
+sample_compare_df = sample_compare_df %>% filter(!is.na(sample_DJ) & !is.na(sample_LY))
 ################################################################################
 if (nrow(sample_compare_df) > 0){
   for (i in 1:tixi_n) {
@@ -1405,11 +1411,9 @@ if (nrow(sample_compare_df) > 0){
 
 ################################################################################
 multi_page_plots <- marrangeGrob(all_plots, nrow = 2, ncol = 2,as.table=FALSE)
-pdf(args$comparepdf, onefile = TRUE, family = "GB1")
+pdf(args$comparepdf, onefile = TRUE, width = 8, height = 8, family = "GB1")
 print(multi_page_plots)
 dev.off()
-
-
 
 ################################################################################
 
