@@ -221,8 +221,8 @@ run 体系  tag tag_sample  目标病原    DJ_sample   LY_sample   DJ_原始数
     2.  白念珠菌（patho_name_fix：Original_name） ：向上归为
         念珠菌属（patho_name_fix：replacement）
 
-    3.  人副流感病毒（patho_name_fix：Original_name）：向下归为
-        人腮腺炎病毒2型（人副流感病毒2型）（patho_name_fix：replacement）
+    3.  ~~人副流感病毒（patho_name_fix：Original_name）：向下归为
+        人腮腺炎病毒2型（人副流感病毒2型）（patho_name_fix：replacement）~~
 
 ## 20240911修订：
 
@@ -341,12 +341,12 @@ run 体系  tag tag_sample  目标病原    DJ_sample   LY_sample   DJ_原始数
 ## 20241023修订：
 
 -   对
-    \"表2-对比信息表\"中的样本名填写不规范，添加矫正功能，剔除那些没有进行对比而留空的行
+    "表2-对比信息表"中的样本名填写不规范，添加矫正功能，剔除那些没有进行对比而留空的行
 
-    -   Debug：对\"表2-对比信息表\"中，剔除不成对的样本行
+    -   Debug：对"表2-对比信息表"中，剔除不成对的样本行
 
--   更新：config.xlsx表格的\"patho_class\"
-    Sheet中添加T2P3的POS，核对有无其余遗漏。同时更新上机信息表中的\"企参列表\"，其中T2P3-POS和T2P3-NEG
+-   更新：config.xlsx表格的"patho_class"
+    Sheet中添加T2P3的POS，核对有无其余遗漏。同时更新上机信息表中的"企参列表"，其中T2P3-POS和T2P3-NEG
     的体系书写有误，已修订，在下一版本（V1.4）的上机信息表同步发布。
 
 -   修复Bug：解决 print(multi_page_plots) 出现的Error in
@@ -355,6 +355,13 @@ run 体系  tag tag_sample  目标病原    DJ_sample   LY_sample   DJ_原始数
 -   修复Bug：绘制各个病原图的时候出现由于NA值而导致Removed 3 rows
     containing missing，而出现
 
-    ![](images/屏幕截图 2024-10-23 143528.png)
+    ![](image/README/屏幕截图%202024-10-23%20143528.png)
 
     -   Debug：将df5_all_compare中的空的病原RPK替换为0
+
+## 20241025修订：
+
+-   T2P3最终判断对于"质控评价"的判断，需要严格匹配"合格"
+
+-   针对
+    ^20240910修订：V1.3版本：人副流感病毒（patho_name_fix：Original_name）：向下归为\ 人腮腺炎病毒2型（人副流感病毒2型）（patho_name_fix：replacement）^进行删除（contig.xlsx)：同时删除在后台数据中删除人副流感病毒。
