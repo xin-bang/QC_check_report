@@ -20,48 +20,48 @@ suppressPackageStartupMessages({
   # library(patchwork)
 })
 
-## 定义调试参数，还未找到很好的解决办法
-## 202405111修订：增加核对功能： 质检表里的文库名在SampleSheet中是否存在
-# args <- list(
-#   input_run = ".",
-#   input0 = "./00_raw_data/Patho_report_final_format.addt5.project.sort.zip",
-#   input1 = "./00_raw_data/QC_report_for_experiment.addt5.xls.zip",
-#   input2 = "./00_raw_data/all_HP_vardect.txt.zip",
-#   input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
-#   input4 = "./00_raw_data/all.drug_mp.txt",
-#   input5 = "./00_raw_data/241022_TPMN00238_0268_A000H7J5HV-历史质检表.xlsx",
-#   output1 = "./Test_QC_result.xlsx",
-#   input6 = "./current_history_results.xlsx",
-#   input7 = "./00_raw_data/config.xlsx",
-#   input8 = "./00_raw_data/SampleSheetUsed.csv",
-#   date = "241022",
-#   output2 = "./current_history_results_thistime.xlsx",
-#   comparepdf = "Test_QC_compare.pdf",
-#   Retropdf = "Test_QC_retro.pdf"
-# )
+# 定义调试参数，还未找到很好的解决办法
+# 202405111修订：增加核对功能： 质检表里的文库名在SampleSheet中是否存在
+args <- list(
+  input_run = ".",
+  input0 = "./00_raw_data/Patho_report_final_format.addt5.project.sort.zip",
+  input1 = "./00_raw_data/QC_report_for_experiment.addt5.xls.zip",
+  input2 = "./00_raw_data/all_HP_vardect.txt.zip",
+  input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
+  input4 = "./00_raw_data/all.drug_mp.txt",
+  input5 = "./00_raw_data/V1.4-历史质检表.xlsx",
+  output1 = "./Test_QC_result.xlsx",
+  input6 = "./current_history_results.xlsx",
+  input7 = "./00_raw_data/config.xlsx",
+  input8 = "./00_raw_data/SampleSheetUsed.csv",
+  date = "241022",
+  output2 = "./current_history_results_thistime.xlsx",
+  comparepdf = "Test_QC_compare.pdf",
+  Retropdf = "Test_QC_retro.pdf"
+)
 
 
 
 
 
 # # 参数定义：
-parser <- ArgumentParser(description="用于质控信息数据分析，目前仅针对T2P2、T3P3、T3P2以及T11中的企参和临床样本；其余类型样本无法分析")
-parser$add_argument("--input_run", help="输入待分析run的path")
-parser$add_argument("--input0", help="输入Patho_report_final_format.addt5.project.sort.zip")
-parser$add_argument("--input1", help="输入QC_report_for_experiment.addt5.xls.zip")
-parser$add_argument("--input2", help="输入all_HP_vardect.txt.zip")
-parser$add_argument("--input3", help="输入Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip")
-parser$add_argument("--input4", help="输入all.drug_mp.txt")
-parser$add_argument("--input5", help="输入质检软件SampleSheet模板表,注意需要核对样本名是否规范！！！")
-parser$add_argument("--output1", help="质控信息分析结果表名称")
-parser$add_argument("--input6", help="输入回顾性信息表")
-parser$add_argument("--input7", help="输入配置文件")
-parser$add_argument("--input8",help = "输入SampleSheetUsed.csv文件")
-parser$add_argument("--date", nargs='?', type="character", help="回顾性中指定日期，格式如240306")
-parser$add_argument("--output2", help="纳入本轮质控分析结果的回顾性表名称")
-parser$add_argument("--comparepdf", help="输出对比分析的pdf,仅在Compare为True起作用")
-parser$add_argument("--Retropdf", help="输出回顾性分析的pdf,仅在Rstro为True起作用")
-args <- parser$parse_args()     # 解析参数
+# parser <- ArgumentParser(description="用于质控信息数据分析，目前仅针对T2P2、T3P3、T3P2以及T11中的企参和临床样本；其余类型样本无法分析")
+# parser$add_argument("--input_run", help="输入待分析run的path")
+# parser$add_argument("--input0", help="输入Patho_report_final_format.addt5.project.sort.zip")
+# parser$add_argument("--input1", help="输入QC_report_for_experiment.addt5.xls.zip")
+# parser$add_argument("--input2", help="输入all_HP_vardect.txt.zip")
+# parser$add_argument("--input3", help="输入Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip")
+# parser$add_argument("--input4", help="输入all.drug_mp.txt")
+# parser$add_argument("--input5", help="输入质检软件SampleSheet模板表,注意需要核对样本名是否规范！！！")
+# parser$add_argument("--output1", help="质控信息分析结果表名称")
+# parser$add_argument("--input6", help="输入回顾性信息表")
+# parser$add_argument("--input7", help="输入配置文件")
+# parser$add_argument("--input8",help = "输入SampleSheetUsed.csv文件")
+# parser$add_argument("--date", nargs='?', type="character", help="回顾性中指定日期，格式如240306")
+# parser$add_argument("--output2", help="纳入本轮质控分析结果的回顾性表名称")
+# parser$add_argument("--comparepdf", help="输出对比分析的pdf,仅在Compare为True起作用")
+# parser$add_argument("--Retropdf", help="输出回顾性分析的pdf,仅在Rstro为True起作用")
+# args <- parser$parse_args()     # 解析参数
 
 
 
@@ -385,9 +385,10 @@ df5 = df4 %>% filter(!is.na(tag_sample))
 
 
 # 20240722：对于tag_sample 为 NTC，NEG样本,不能剔除这些重名的病原
+# 20241025：删除人副流感病毒
 df5 = df5 %>%
    filter((tag_sample %in% c("NTC","NEG")) |
-                       (!patho_namezn %in% c("肠道病毒","肠道病毒A组","人腺病毒E组","人腺病毒C组","人腺病毒21型","人腺病毒B组","人腺病毒"))) 
+                       (!patho_namezn %in% c("肠道病毒","肠道病毒A组","人腺病毒E组","人腺病毒C组","人腺病毒21型","人腺病毒B组","人腺病毒","人副流感病毒"))) 
 
 
 ##根据patho_namezn 将病原分类为：目标、外源、外源内参、人内参等args$input7
@@ -616,15 +617,15 @@ df5_cc_stat <- df5_cc_stat %>%
       
       tag_sample %in% c("临床样本", "其它") ~ 质控评价,
       体系 == "T2P3" & tag_sample == "NTC" & resis_info_check_2 & other_pathogen_check ~ "合格",
-      体系 == "T2P3" & tag_sample == "阴性参考品" & resis_info_check_2 & other_pathogen_check & 总人内参 > 200 & !str_detect(质控评价,"不合格") ~ "合格",
+      体系 == "T2P3" & tag_sample == "阴性参考品" & resis_info_check_2 & other_pathogen_check & 总人内参 > 200 & (质控评价 == "合格") ~ "合格",
       体系 == "T2P3" & tag_sample == "阴性对照品" & resis_info_check_2 & other_pathogen_check & 外源内参 > 50 ~ "合格",
       体系 == "T2P3" & tag_sample == "阳性对照品" & resis_info_check_2 & other_pathogen_check & 外源内参 > 50 & 目标病原预判 != "滤" ~ "合格",
-      体系 == "T2P3" & tag_sample == "检测限参考品" & resis_info_check_2 & other_pathogen_check & !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
-      体系 == "T2P3" & tag_sample == "检测限参考品" & other_pathogen_check & !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
-      体系 == "T2P3" & tag_sample == "阳性参考品" & resis_info_check_2 & other_pathogen_check & !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
-      体系 == "T2P3" & tag_sample == "阳性参考品" & other_pathogen_check & !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
-      体系 == "T2P3" & tag_sample == "重复性参考品" & resis_info_check_2 & other_pathogen_check & !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
-      体系 == "T2P3" & tag_sample == "重复性参考品" & other_pathogen_check & !str_detect(质控评价,"不合格") & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
+      体系 == "T2P3" & tag_sample == "检测限参考品" & resis_info_check_2 & other_pathogen_check & (质控评价 == "合格") & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      体系 == "T2P3" & tag_sample == "检测限参考品" & other_pathogen_check & (质控评价 == "合格") & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
+      体系 == "T2P3" & tag_sample == "阳性参考品" & resis_info_check_2 & other_pathogen_check & (质控评价 == "合格") & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      体系 == "T2P3" & tag_sample == "阳性参考品" & other_pathogen_check & (质控评价 == "合格") & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
+      体系 == "T2P3" & tag_sample == "重复性参考品" & resis_info_check_2 & other_pathogen_check & (质控评价 == "合格") & 目标病原预判 != "滤" & !str_detect(目标病原, "百日咳") ~ "合格",
+      体系 == "T2P3" & tag_sample == "重复性参考品" & other_pathogen_check & (质控评价 == "合格") & 目标病原预判 != "滤" & str_detect(目标病原, "百日咳") & str_detect(resis_info, "百日咳|^$") ~ "合格",
       
       
       #20241010修订；①：感染1000没有加外源内参，人内参。对于外源内参 < 50 则判为合格；人内参 ≤ 200 则判为合格；②：T11体系不考虑质控评价列
@@ -701,6 +702,7 @@ df5_cc_stat =
 ###20240911修改；给出不合格原因：层级：原始数据不合格；Q30不合格；人内参不合格；目标病原漏检；病原污染；耐药污染
 ###20240929修改；针对目标病原是百日咳，但resis_info是其余耐药（肺支，脓肿，结核等），而不给出不合格原因的情况
 ###20241009修订；新增TA11体系
+###20241025修订；T2P3最终判断对于"质控评价"的判断，需要严格匹配"合格"
 df5_cc_stat <- df5_cc_stat %>%
   mutate(不合格原因 = case_when(
     str_detect(最终评价,"不合格") & tag_sample == "临床样本" ~ 质控评价,
@@ -710,7 +712,8 @@ df5_cc_stat <- df5_cc_stat %>%
     str_detect(最终评价,"不合格") & tag_sample %in% c("NTC", "阳性参考品","检测限参考品","阴性参考品","阴性对照品","重复性参考品","阳性对照品") & Q30 <= 0.75 ~ "Q30不合格",
     
     #T2P3体系：
-    体系 == "T2P3" & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") & str_detect(质控评价,"不合格") ~ "内参不合格",
+    ###20241025修订；T2P3最终判断对于"质控评价"的判断，需要严格匹配"合格"
+    体系 == "T2P3" & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") & str_detect(质控评价,"注意人内参低") ~ "内参不合格",
     体系 == "T2P3" & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") &  (目标病原预判 == "滤" | is.na(目标病原预判)) ~ "目标病原漏检",   
     体系 == "T2P3" & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") &  other_pathogen_check== "FALSE" ~ "病原污染",
     体系 == "T2P3" & tag_sample %in% c("阳性参考品","重复性参考品","检测限参考品")  & str_detect(最终评价,"不合格") &  resis_info_check_2== "FALSE" ~ "耐药污染",
@@ -1055,7 +1058,8 @@ if (nrow(sample_compare_df) > 0){
   df5_all_compare_t2 = df5_all_compare_t2 %>% mutate_at(vars(matches("检出病原RPK")),as.numeric)
   df5_all_compare = bind_rows(df5_all_compare_t1,df5_all_compare_t2) %>% distinct()
   
-  
+  #20241023修订：修复绘图可能出现的Removed 3 rows containing missing
+  df5_all_compare = df5_all_compare %>% mutate(across(matches("检出病原RPK"),~replace_na(.,0)))
   
   
   ########################################################  
@@ -1063,8 +1067,7 @@ if (nrow(sample_compare_df) > 0){
   print("没有对比信息")
 }
 
-#20241023修订：修复绘图可能出现的Removed 3 rows containing missing
-df5_all_compare = df5_all_compare %>% mutate(across(matches("检出病原RPK"),~replace_na(.,0)))
+
 
 
 ###20240506修改；修改Excel的顺序
@@ -1138,7 +1141,10 @@ tixi_n = length(tixi)
 
 #####所有样本中的质控散点图,按照体系来绘制
 ####20241023修订：sample_compare_df
-sample_compare_df = sample_compare_df %>% filter(!is.na(sample_DJ) & !is.na(sample_LY))
+if(nrow(sample_compare_df) > 0){
+  sample_compare_df = sample_compare_df %>% filter(!is.na(sample_DJ) & !is.na(sample_LY))
+}
+
 ################################################################################
 if (nrow(sample_compare_df) > 0){
   for (i in 1:tixi_n) {

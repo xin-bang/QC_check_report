@@ -364,4 +364,4 @@ run 体系  tag tag_sample  目标病原    DJ_sample   LY_sample   DJ_原始数
 -   T2P3最终判断对于"质控评价"的判断，需要严格匹配"合格"
 
 -   针对
-    ^20240910修订：V1.3版本：人副流感病毒（patho_name_fix：Original_name）：向下归为\ 人腮腺炎病毒2型（人副流感病毒2型）（patho_name_fix：replacement）^进行删除（contig.xlsx)：同时删除在后台数据中删除人副流感病毒。
+    ^20240910修订：V1.3版本：人副流感病毒（patho_name_fix：Original_name）：向下归为 人腮腺炎病毒2型（人副流感病毒2型）（patho_name_fix：replacement）^进行删除（contig.xlsx)：同时删除在后台数据中删除人副流感病毒。
