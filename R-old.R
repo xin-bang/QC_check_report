@@ -29,7 +29,7 @@ args <- list(
   input2 = "./00_raw_data/all_HP_vardect.txt.zip",
   input3 = "./00_raw_data/Patho_report_final_format.trim.rptname.ntinfo.addsemi.zip",
   input4 = "./00_raw_data/all.drug_mp.txt",
-  input5 = "./00_raw_data/V1.4-历史质检表.xlsx",
+  input5 = "./00_raw_data/240912_T2P3_demo-历史质检表.xlsx",
   output1 = "./Test_QC_result.xlsx",
   input6 = "./current_history_results.xlsx",
   input7 = "./00_raw_data/config.xlsx",

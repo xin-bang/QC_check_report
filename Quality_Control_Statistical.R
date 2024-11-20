@@ -53,7 +53,7 @@ suppressPackageStartupMessages({
 #SampleSheetUsed.csv文件：                                                      //用于核对本轮质检样本数和上机样本数是否一致
 
 
-# # # 参数定义：
+# 参数定义：
 parser <- ArgumentParser(description="用于质控信息数据分析，目前仅针对T2P2、T3P3、T3P2以及T11中的企参和临床样本；其余类型样本无法分析")
 parser$add_argument("--input_run", help="输入待分析run的path")
 parser$add_argument("--input0", help="输入Patho_report_final_format.addt5.project.sort.zip")
@@ -588,7 +588,7 @@ df5_cc_stat <- df5_cc_stat %>%
       ifelse(tag_sample %in% c("阳性对照品","阴性对照品") & !str_detect(sample,"DZ") & (n_内参个数 > 1),"内参不合格",NA_character_),
       ifelse(tag_sample %in% c("阳性对照品","阴性对照品") & !str_detect(sample,"DZ") & ((n_弱阳个数 > 2) | (n_阳性个数 > 1)),"病原污染",NA_character_),
       ifelse(tag_sample %in% c("阳性对照品","阴性对照品") & !str_detect(sample,"DZ") & (n_耐药个数 > 1),"耐药污染",NA_character_),
-      ifelse(tag_sample == "阳性对照品" & (目标病原预判 == "滤" | is.na(目标病原预判)),"内参不合格",NA_character_),
+      ifelse(tag_sample == "阳性对照品" & (目标病原预判 == "滤" | is.na(目标病原预判)),"目标病原漏检",NA_character_),
       sep = ";"
       ),
     
@@ -653,16 +653,18 @@ df5_cc_stat_final = df5_cc_stat %>% select(体系,生产批号,run,sample,tag_sa
 
 
 # 各病原污染情况评估 -----------------------------------------------------------------
-# df5_cc_other_patho_final
-df5_cc_other_patho = df5 %>% filter(tag_sample %in% c("NTC","检测限参考品","阳性参考品","阴性参考品","阴性对照品","阳性对照品","重复性参考品")) %>% filter(!is.na(tag_sample)) 
+# df5_cc_other_patho_final : 各污染病原的统计： 已去除污染病原和污染耐药flag为"滤"的情况
+df5_cc_other_patho = df5 %>% filter(tag_sample %in% c("NTC","检测限参考品","阳性参考品","阴性参考品","阴性对照品","阳性对照品","重复性参考品")) %>% filter(!is.na(tag_sample))
+df5_cc_other_patho_stat = df5_cc_other_patho %>% group_by(体系,生产批号) %>% summarise(same_batch_num = n_distinct(sample)) %>% ungroup()
 
-if (nrow(df5_cc_other_patho) > 0){
-  df5_cc_other_patho <- df5_cc_other_patho %>%
-    group_by(体系,生产批号) %>%
-    mutate(same_batch_num = n_distinct(sample)) %>% ungroup()
+#外源病原污染情况统计
+df5_cc_other_patho_2 = df5_cc_other_patho %>% filter(filter_flag !="滤")
+if (nrow(df5_cc_other_patho_2) > 0){
+  df5_cc_other_patho_2 = df5_cc_other_patho_2 %>% 
+    left_join(df5_cc_other_patho_stat,by = c("体系","生产批号"))
   
-  df5_cc_other_patho =
-    df5_cc_other_patho%>% group_by(体系,生产批号,same_batch_num,patho_tag,patho_namezn) %>% 
+  df5_cc_other_patho_2 =
+    df5_cc_other_patho_2%>% group_by(体系,生产批号,same_batch_num,patho_tag,patho_namezn) %>% 
     summarise(total_sample = n_distinct(sample),
               RPK_median = median(patho_RPK,na.rm = TRUE),
               RPK_mean = round(mean(patho_RPK, na.rm = TRUE), digits = 1),
@@ -672,46 +674,55 @@ if (nrow(df5_cc_other_patho) > 0){
     select(-patho_tag)
   } else {
     print("本轮质检没有企参、NTC、NEG相关样本，请确认")
-    df5_cc_other_patho = as.data.frame(matrix(NA,ncol = 5, nrow = 1))
-    colnames(df5_cc_other_patho) <- c("same_batch_num", "patho_namezn", "total_sample", "RPK_median", "sample_frequency")
+    df5_cc_other_patho_2 = as.data.frame(matrix(NA,ncol = 5, nrow = 1))
+    colnames(df5_cc_other_patho_2) <- c("same_batch_num", "patho_namezn", "total_sample", "RPK_median", "sample_frequency")
     }
 
 ##添加百日咳和肺炎耐药的信息：
-df5_cc_other_patho_2 = df5 %>% filter(tag_sample %in% c("NTC","检测限参考品","阳性参考品","阴性参考品","阴性对照品","阳性对照品","重复性参考品")) %>% filter(!is.na(tag_sample))
-df5_cc_other_patho_2 = df5_cc_other_patho_2 %>% filter(!(型别 %in% c("百日咳鲍特菌","肺炎支原体"))) %>% filter(!is.na(drug_info))
-
-
-if(nrow(df5_cc_other_patho_2) > 0){
-  df5_cc_other_patho_2 = df5_cc_other_patho_2 %>% 
-    group_by(体系,生产批号) %>% mutate(same_batch_num = n_distinct(sample)) %>% ungroup()
+df5_cc_other_patho_3 = df5 %>% filter(!(型别 %in% c("百日咳鲍特菌","肺炎支原体"))) %>% filter(!is.na(drug_info)) %>% filter(resis_MutLog != "滤")
+if(nrow(df5_cc_other_patho_3) > 0){
+  df5_cc_other_patho_3 = df5_cc_other_patho_3 %>% 
+    left_join(df5_cc_other_patho_stat,by = c("体系","生产批号"))
   
-  df5_cc_other_patho_2 = df5_cc_other_patho_2 %>% 
+  
+  df5_cc_other_patho_3 = df5_cc_other_patho_3 %>% 
     separate(drug_info, sep = "\\|", c("patho","drug","RPK"), remove = TRUE) %>%
     select(体系,sample, 生产批号,patho, RPK,same_batch_num) %>% 
     distinct() %>% 
     group_by(体系,生产批号,same_batch_num,patho) %>% 
-    summarise(total_sample = n(),
+    summarise(total_sample = n_distinct(sample),
               RPK_median = median(as.numeric(RPK), na.rm = TRUE),
               RPK_mean = round(mean(as.numeric(RPK), na.rm = TRUE), digits = 1),
               .groups = "drop") %>% 
     mutate(sample_frequency = total_sample / same_batch_num)
   
-  df5_cc_other_patho_2$RPK_median = as.numeric(df5_cc_other_patho_2$RPK_median) 
-  df5_cc_other_patho_2$RPK_mean = as.numeric(df5_cc_other_patho_2$RPK_mean)
-  df5_cc_other_patho_2 = df5_cc_other_patho_2 %>% rename("patho_namezn" = "patho") %>% ungroup()
+  df5_cc_other_patho_3$RPK_median = as.numeric(df5_cc_other_patho_3$RPK_median) 
+  df5_cc_other_patho_3$RPK_mean = as.numeric(df5_cc_other_patho_3$RPK_mean)
+  df5_cc_other_patho_3 = df5_cc_other_patho_3 %>% rename("patho_namezn" = "patho") %>% ungroup()
   } else {
-    print("本轮之间无无百日咳和肺炎耐药检出（耐药信息为空）")
+    print("本轮之间无无百日咳和肺炎耐药污染检出（耐药信息为空）")
     }
 
 
-if(nrow(df5_cc_other_patho_2) > 0 & nrow(df5_cc_other_patho) > 0){
-  df5_cc_other_patho =df5_cc_other_patho %>%  full_join(df5_cc_other_patho_2)
-  } else if (nrow(df5_cc_other_patho_2) > 0 & nrow(df5_cc_other_patho) == 0) {
-    df5_cc_other_patho = df5_cc_other_patho2
-    } else if (nrow(df5_cc_other_patho_2) == 0 & nrow(df5_cc_other_patho) > 0){
-      df5_cc_other_patho = df5_cc_other_patho
-      }
-
+if (nrow(df5_cc_other_patho_3) > 0 & nrow(df5_cc_other_patho_2) > 0) {
+  df5_cc_other_patho_2 <- df5_cc_other_patho_2 %>% full_join(df5_cc_other_patho_3)
+} else if (nrow(df5_cc_other_patho_3) > 0 & nrow(df5_cc_other_patho_2) == 0) {
+  df5_cc_other_patho_2 <- df5_cc_other_patho_3
+} else if (nrow(df5_cc_other_patho_3) == 0 & nrow(df5_cc_other_patho_2) > 0) {
+  df5_cc_other_patho_2 <- df5_cc_other_patho_2
+} else if (nrow(df5_cc_other_patho_3) == 0 & nrow(df5_cc_other_patho_2) == 0) {
+  df5_cc_other_patho_2 <- tibble(
+    "体系" = character(),
+    "生产批号" = character(),
+    "same_batch_num" = numeric(),
+    "patho_namezn" = character(),
+    "total_sample" = numeric(),
+    "RPK_median" = numeric(),
+    "RPK_mean" = numeric(),
+    "sample_frequency" = numeric()
+  )
+}
+df5_cc_other_patho = df5_cc_other_patho_2
 
 ## 添加生信预判 ----------------------------------------------------------------
 
@@ -899,6 +910,7 @@ df5_cc_other_patho_final = df5_cc_other_patho %>%
   "病原名" = "patho_namezn",
   "检出样本数" = "total_sample",
   "病原RPK中位数" = "RPK_median",
+  "病原RPK平均数" = "RPK_mean",
   "样本频率" = "sample_frequency"
   ) %>% as_tibble()
 
